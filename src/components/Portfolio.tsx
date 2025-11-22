@@ -45,15 +45,22 @@ interface PortfolioData {
   investments: Investment[];
 }
 
-// Company names mapping
+// Company names mapping - HM14 (14 Harvard-verified companies)
 const COMPANY_NAMES: { [key: number]: { name: string; ticker: string } } = {
-  1: { name: 'Facebook', ticker: 'META' },
+  1: { name: 'Meta', ticker: 'META' },
   2: { name: 'Microsoft', ticker: 'MSFT' },
-  3: { name: 'Dropbox', ticker: 'DBX' },
-  4: { name: 'Akamai', ticker: 'AKAM' },
-  5: { name: 'Reddit', ticker: 'RDDT' },
-  6: { name: 'Warby Parker', ticker: 'WRBY' },
-  7: { name: 'Booking.com', ticker: 'BKNG' },
+  3: { name: 'Airbnb', ticker: 'ABNB' },
+  4: { name: 'Cloudflare', ticker: 'NET' },
+  5: { name: 'Grab', ticker: 'GRAB' },
+  6: { name: 'Moderna', ticker: 'MRNA' },
+  7: { name: 'Klaviyo', ticker: 'KVYO' },
+  8: { name: 'Affirm', ticker: 'AFRM' },
+  9: { name: 'Peloton', ticker: 'PTON' },
+  10: { name: 'Asana', ticker: 'ASAN' },
+  11: { name: 'Lyft', ticker: 'LYFT' },
+  12: { name: 'ThredUp', ticker: 'TDUP' },
+  13: { name: 'KIND Snacks', ticker: 'KIND' },
+  14: { name: 'Rent the Runway', ticker: 'RENT' },
 };
 
 export default function Portfolio() {
