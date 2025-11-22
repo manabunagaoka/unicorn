@@ -275,7 +275,7 @@ export default function Portfolio() {
           <div>
             <div className="text-sm font-semibold uppercase opacity-75 mb-1">Portfolio Value</div>
             <div className="text-3xl font-bold">
-              ${totalValue.toFixed(2)}
+              ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs opacity-75 mt-1">Cash + Holdings</div>
           </div>
@@ -294,7 +294,7 @@ export default function Portfolio() {
           <div>
             <div className="text-sm font-semibold uppercase opacity-75 mb-1">Cash</div>
             <div className="text-3xl font-bold">
-              ${data.balance.available_tokens.toFixed(2)}
+              ${data.balance.available_tokens.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs opacity-75 mt-1">Available to trade</div>
           </div>
@@ -303,7 +303,7 @@ export default function Portfolio() {
           <div>
             <div className="text-sm font-semibold uppercase opacity-75 mb-1">Holdings</div>
             <div className="text-3xl font-bold">
-              ${data.balance.portfolio_value.toFixed(2)}
+              ${data.balance.portfolio_value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs opacity-75 mt-1">Invested value</div>
           </div>
@@ -351,11 +351,11 @@ export default function Portfolio() {
                     
                     <div className="text-right">
                       <div className="text-2xl font-bold text-white mb-1">
-                        ${inv.current_value.toFixed(2)}
+                        ${inv.current_value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div className={`flex items-center justify-end gap-1 text-sm font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
                         {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                        {isPositive ? '+' : ''}{gainLoss.toFixed(2)} MTK ({gainLossPercent}%)
+                        {isPositive ? '+' : ''}{gainLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MTK ({gainLossPercent}%)
                       </div>
                     </div>
                   </div>
@@ -408,7 +408,7 @@ export default function Portfolio() {
                     
                     <div className="text-right">
                       <div className="text-xl font-bold text-white">
-                        {isBuy ? '-' : '+'}${tx.total_amount.toFixed(2)}
+                        {isBuy ? '-' : '+'}${tx.total_amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
