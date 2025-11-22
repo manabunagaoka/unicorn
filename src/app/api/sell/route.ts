@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const totalProceeds = Math.floor(shares * currentPrice);
+    const totalProceeds = shares * currentPrice;
 
     // Get user balance
     const { data: balance, error: balanceError } = await supabase
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
     // Update or delete user investment
     const newShares = parseFloat(investment.shares_owned) - shares;
     const proportionSold = shares / parseFloat(investment.shares_owned);
-    const costBasisSold = Math.floor(investment.total_invested * proportionSold);
+    const costBasisSold = investment.total_invested * proportionSold;
     const newTotalInvested = investment.total_invested - costBasisSold;
     
     if (newShares <= 0) {
@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Update investment - reduce shares and cost basis proportionally
-      const newCurrentValue = Math.floor(newShares * currentPrice);
+      const newCurrentValue = newShares * currentPrice;
       const newUnrealizedGainLoss = newCurrentValue - newTotalInvested;
       
       const { error: updateError } = await supabase

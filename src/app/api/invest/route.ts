@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const totalCost = Math.floor(shares * currentPrice);
+    const totalCost = shares * currentPrice;
 
     // Check if user has enough tokens
     if (balance.available_tokens < totalCost) {
@@ -231,8 +231,8 @@ export async function POST(request: NextRequest) {
           shares_owned: newShares,
           total_invested: newTotalInvested,
           avg_purchase_price: newAvgPrice,
-          current_value: Math.floor(newShares * currentPrice),
-          unrealized_gain_loss: Math.floor(newShares * currentPrice) - newTotalInvested,
+          current_value: newShares * currentPrice,
+          unrealized_gain_loss: (newShares * currentPrice) - newTotalInvested,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
