@@ -55,14 +55,30 @@ export async function GET(
       const fallbackPrices: { [key: string]: number } = {
         'META': 621.71,
         'MSFT': 496.82,
-        'DBX': 30.87,
-        'AKAM': 83.74,
-        'RDDT': 194.58,
-        'WRBY': 17.22,
-        'BKNG': 4940
+        'ABNB': 116.06,
+        'NET': 199.61,
+        'GRAB': 5.33,
+        'MRNA': 24.86,
+        'KVYO': 27.47,
+        'AFRM': 66.67,
+        'PTON': 7.19,
+        'ASAN': 12.10,
+        'LYFT': 21.63,
+        'TDUP': 7.47,
+        'KIND': 2.06,
+        'RENT': 4.53
       };
+      
+      if (!fallbackPrices[ticker]) {
+        console.error(`[Stock API] No fallback price for ${ticker}`);
+        return NextResponse.json(
+          { error: 'Stock price unavailable' },
+          { status: 503 }
+        );
+      }
+      
       return NextResponse.json({
-        c: fallbackPrices[ticker] || 100,
+        c: fallbackPrices[ticker],
         d: 0,
         dp: 0,
         _fallback: true,
@@ -96,15 +112,30 @@ export async function GET(
     const fallbackPrices: { [key: string]: number } = {
       'META': 621.71,
       'MSFT': 496.82,
-      'DBX': 30.87,
-      'AKAM': 83.74,
-      'RDDT': 194.58,
-      'WRBY': 17.22,
-      'BKNG': 4940
+      'ABNB': 116.06,
+      'NET': 199.61,
+      'GRAB': 5.33,
+      'MRNA': 24.86,
+      'KVYO': 27.47,
+      'AFRM': 66.67,
+      'PTON': 7.19,
+      'ASAN': 12.10,
+      'LYFT': 21.63,
+      'TDUP': 7.47,
+      'KIND': 2.06,
+      'RENT': 4.53
     };
     
+    if (!fallbackPrices[ticker]) {
+      console.error(`[Stock API] No fallback price for ${ticker}`);
+      return NextResponse.json(
+        { error: 'Stock price unavailable' },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json({
-      c: fallbackPrices[ticker] || 100,
+      c: fallbackPrices[ticker],
       d: 0,
       dp: 0,
       _fallback: true,
