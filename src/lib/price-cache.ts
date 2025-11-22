@@ -55,8 +55,7 @@ export async function fetchPriceWithCache(
         console.warn(`[PriceCache] Invalid Finnhub data for ${ticker}, using stale cache: $${cached.price}`);
         return cached.price;
       }
-      console.warn(`[PriceCache] Invalid Finnhub data for ${ticker}, no cache available, using fallback 100`);
-      return 100;
+      throw new Error(`Invalid Finnhub data for ${ticker} and no cache available`);
     }
   } catch (error) {
     console.error(`[PriceCache] Error fetching ${ticker}:`, error);
@@ -65,6 +64,6 @@ export async function fetchPriceWithCache(
       console.warn(`[PriceCache] Using stale cache for ${ticker} due to error: $${cached.price}`);
       return cached.price;
     }
-    return 100; // Final fallback
+    throw error; // Throw error so caller can check database
   }
 }

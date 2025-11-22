@@ -137,16 +137,32 @@ export async function GET(request: NextRequest) {
     const investmentsWithPrices = await Promise.all(
       (investments || []).map(async (inv) => {
         const ticker = tickerMap[inv.pitch_id];
-        let currentPrice = 100; // Final fallback only if no cached price exists
-        let priceSource = 'fallback';
+        let currentPrice = inv.avg_purchase_price; // Use purchase price as initial fallback
+        let priceSource = 'purchase_price';
         
         if (ticker && process.env.STOCK_API_KEY) {
           try {
             currentPrice = await fetchPriceWithCache(ticker, inv.pitch_id, process.env.STOCK_API_KEY);
-            priceSource = 'cache'; // fetchPriceWithCache handles cache internally
+            priceSource = 'live';
           } catch (error) {
             console.error(`[Portfolio] Error fetching price for ${ticker}:`, error);
-            priceSource = 'fallback';
+            
+            // Try to get last known price from database
+            try {
+              const { data: dbPrice } = await supabase
+                .from('pitch_current_prices')
+                .select('current_price')
+                .eq('pitch_id', inv.pitch_id)
+                .single();
+              
+              if (dbPrice && dbPrice.current_price > 0) {
+                currentPrice = dbPrice.current_price;
+                priceSource = 'database';
+                console.log(`[Portfolio] Using DB price for ${ticker}: $${currentPrice}`);
+              }
+            } catch (dbError) {
+              console.error(`[Portfolio] DB price fetch failed for ${ticker}:`, dbError);
+            }
           }
         }
 
