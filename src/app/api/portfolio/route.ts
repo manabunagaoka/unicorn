@@ -182,13 +182,14 @@ export async function GET(request: NextRequest) {
 
     // Calculate total portfolio value
     const totalPortfolioValue = investmentsWithPrices.reduce((sum, inv) => sum + inv.current_value, 0);
+    const totalInvested = investmentsWithPrices.reduce((sum, inv) => sum + inv.total_invested, 0);
     const totalGainLoss = investmentsWithPrices.reduce((sum, inv) => sum + inv.unrealized_gain_loss, 0);
 
     return NextResponse.json({
       balance: {
         total_tokens: balance.total_tokens,
         available_tokens: balance.available_tokens,
-        portfolio_value: totalPortfolioValue,
+        portfolio_value: totalInvested, // Changed from totalPortfolioValue - use cost basis, not market value
         all_time_gain_loss: totalGainLoss,
         total_invested: balance.total_invested
       },
