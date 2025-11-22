@@ -137,7 +137,14 @@ export async function POST(request: NextRequest) {
     };
     
     const ticker = tickerMap[pitchId];
-    let currentPrice = marketData.current_price || 100; // Use database price as fallback
+    let currentPrice = marketData.current_price;
+    
+    if (!currentPrice) {
+      return NextResponse.json(
+        { error: 'Stock price unavailable. Please try again in a moment.' },
+        { status: 503 }
+      );
+    }
     
     if (ticker) {
       try {

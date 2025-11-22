@@ -107,7 +107,7 @@ export default async function TradePage() {
           </Link>
 
           {/* HM7 2.0 - Next Generation */}
-          <Link href="/hm7" className="group">
+          <Link href="/hm720" className="group">
             <div className="bg-gradient-to-br from-blue-500/20 to-cyan-600/20 border-2 border-blue-500/50 rounded-2xl p-8 hover:border-blue-400 transition-all hover:shadow-xl hover:shadow-blue-500/20 relative overflow-hidden">
               <div className="absolute top-4 right-4">
                 <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
