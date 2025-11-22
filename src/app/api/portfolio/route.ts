@@ -126,10 +126,11 @@ export async function GET(request: NextRequest) {
       console.error('Investment fetch error:', investError);
     }
 
-    // Company ticker mapping
+    // Company ticker mapping (HM14 - Harvard Magnificent 14)
     const tickerMap: { [key: number]: string } = {
-      1: 'META', 2: 'MSFT', 3: 'DBX', 4: 'AKAM', 5: 'RDDT',
-      6: 'WRBY', 7: 'BKNG'
+      1: 'META', 2: 'MSFT', 3: 'ABNB', 4: 'NET', 5: 'GRAB',
+      6: 'MRNA', 7: 'KVYO', 8: 'AFRM', 9: 'PTON', 10: 'ASAN',
+      11: 'LYFT', 12: 'TDUP', 13: 'KIND', 14: 'RENT'
     };
 
     // Get current market prices from Finnhub (real-time stock prices)
