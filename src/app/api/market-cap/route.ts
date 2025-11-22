@@ -7,13 +7,20 @@ export const dynamic = 'force-dynamic';
 // Returns real-time market capitalization for HM7 companies
 
 const TICKER_MAP: { [key: string]: string } = {
-  'META': 'Facebook',
-  'MSFT': 'Microsoft', 
-  'DBX': 'Dropbox',
-  'AKAM': 'Akamai',
-  'RDDT': 'Reddit',
-  'WRBY': 'Warby Parker',
-  'BKNG': 'Booking.com'
+  'META': 'Meta Platforms',
+  'MSFT': 'Microsoft',
+  'ABNB': 'Airbnb',
+  'NET': 'Cloudflare',
+  'GRAB': 'Grab Holdings',
+  'MRNA': 'Moderna',
+  'KVYO': 'Klaviyo',
+  'AFRM': 'Affirm',
+  'PTON': 'Peloton',
+  'ASAN': 'Asana',
+  'LYFT': 'Lyft',
+  'TDUP': 'ThredUp',
+  'KIND': 'Nextdoor',
+  'RENT': 'Rent the Runway'
 };
 
 export async function GET() {
