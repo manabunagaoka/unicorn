@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        const currentValue = Math.floor(parseFloat(inv.shares_owned) * currentPrice);
+        const currentValue = parseFloat(inv.shares_owned) * currentPrice;
         const unrealizedGainLoss = currentValue - inv.total_invested;
 
         return {
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       balance: {
         total_tokens: balance.total_tokens,
-        available_tokens: Math.floor(balance.available_tokens), // Floor to remove cents
+        available_tokens: balance.available_tokens,
         portfolio_value: totalPortfolioValue,
         all_time_gain_loss: totalGainLoss,
         total_invested: balance.total_invested
