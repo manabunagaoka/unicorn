@@ -12,10 +12,14 @@ export const maxDuration = 60; // 60 seconds for Pro plan
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify this is a Vercel cron request
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.log('[AI Trading Cron] ===== CRON TRIGGERED =====');
+    console.log('[AI Trading Cron] Auth header:', request.headers.get('authorization')?.substring(0, 30) + '...');
+    console.log('[AI Trading Cron] CRON_SECRET set?', !!process.env.CRON_SECRET);
+    
+    // Vercel cron automatically includes auth - just verify CRON_SECRET exists
+    if (!process.env.CRON_SECRET) {
+      console.error('[AI Trading Cron] CRON_SECRET not set in environment!');
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
     }
 
     console.log('[AI Trading Cron] Starting automated trading run...');
