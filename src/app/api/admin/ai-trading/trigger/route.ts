@@ -7,24 +7,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// HM14 - Harvard Magnificent 14 (100% Harvard-verified founders)
-const HM14_PITCHES = [
-  { id: 1, name: 'Meta', ticker: 'META', founder: 'Mark Zuckerberg' },
-  { id: 2, name: 'Microsoft', ticker: 'MSFT', founder: 'Bill Gates' },
-  { id: 3, name: 'Airbnb', ticker: 'ABNB', founder: 'Nathan Blecharczyk' },
-  { id: 4, name: 'Cloudflare', ticker: 'NET', founder: 'Michelle Zatlyn' },
-  { id: 5, name: 'Grab', ticker: 'GRAB', founder: 'Anthony Tan' },
-  { id: 6, name: 'Moderna', ticker: 'MRNA', founder: 'Harvard faculty' },
-  { id: 7, name: 'Klaviyo', ticker: 'KVYO', founder: 'Andrew Bialecki' },
-  { id: 8, name: 'Affirm', ticker: 'AFRM', founder: 'Alex Rampell' },
-  { id: 9, name: 'Peloton', ticker: 'PTON', founder: 'John Foley' },
-  { id: 10, name: 'Asana', ticker: 'ASAN', founder: 'Justin Rosenstein' },
-  { id: 11, name: 'Lyft', ticker: 'LYFT', founder: 'Logan Green' },
-  { id: 12, name: 'ThredUp', ticker: 'TDUP', founder: 'James Reinhart' },
-  { id: 13, name: 'Nextdoor', ticker: 'KIND', founder: 'Nirav Tolia' },
-  { id: 14, name: 'Rent the Runway', ticker: 'RENT', founder: 'Jennifer Hyman' },
-];
-
 interface AITradeDecision {
   action: 'BUY' | 'SELL' | 'HOLD';
   pitch_id: number;
@@ -211,7 +193,7 @@ async function getAITradeDecision(
     : 'No current holdings - 100% cash!';
 
   const marketData = pitches.map(p => {
-    return `${p.company_name} (${p.ticker}) - ${p.category}
+    return `[Pitch ID: ${p.pitch_id}] ${p.company_name} (${p.ticker}) - ${p.category}
     Price: $${p.current_price?.toFixed(2)} (${p.price_change_24h >= 0 ? '+' : ''}${p.price_change_24h?.toFixed(2)}% today)
     Pitch: "${p.elevator_pitch}"
     Story: ${p.founder_story}
@@ -222,6 +204,12 @@ async function getAITradeDecision(
   
   // Use custom personality prompt if available, otherwise use default guidelines
   const personalityGuidelines = aiInvestor.ai_personality_prompt || getStrategyGuidelines(aiInvestor.ai_strategy);
+  
+  // Get valid pitch_id range for prompt
+  const validPitchIds = pitches.map(p => p.pitch_id).sort((a, b) => a - b);
+  const pitchIdRange = validPitchIds.length > 0 
+    ? `${Math.min(...validPitchIds)}-${Math.max(...validPitchIds)}` 
+    : '1-14';
   
   const prompt = `You are "${aiInvestor.ai_nickname}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
 Your catchphrase: "${aiInvestor.ai_catchphrase}"
@@ -235,7 +223,7 @@ CURRENT STATUS:
 YOUR PORTFOLIO:
 ${portfolioSummary}
 
-INVESTMENT OPPORTUNITIES (HM7 Index - Harvard Legends):
+INVESTMENT OPPORTUNITIES (HM14 - Harvard Magnificent Companies):
 ${marketData}
 
 🎭 YOUR PERSONALITY & TRADING GUIDELINES:
@@ -267,16 +255,17 @@ ${aiInvestor.ai_strategy === 'SAAS_ONLY' ? '☁️ ENTERPRISE B2B RULE: ONLY com
 Make ONE bold trade decision. Respond with valid JSON only:
 {
   "action": "BUY" | "SELL" | "HOLD",
-  "pitch_id": number (1-7),
+  "pitch_id": number (valid IDs: ${validPitchIds.join(', ')}),
   "shares": number (calculate from your budget / stock price),
   "reasoning": "Brief explanation showing your personality and referencing specific pitch details or price action"
 }
 
 ⚠️ CRITICAL CALCULATION RULES:
 - ALWAYS calculate shares as: (your chosen budget in MTK) / (stock's current price)
-- Example: If you want to invest $100,000 MTK in Reddit at $65.00/share: shares = 100000 / 65 = 1538.46
+- Example: To invest $100,000 MTK in a stock at $65.00/share: shares = 100000 / 65 = 1538.46
 - NEVER exceed your available cash of $${Math.floor(aiInvestor.available_tokens).toLocaleString()} MTK
 - Double-check: (shares × price) must be ≤ your available cash
+- Use ONLY the Pitch IDs listed above in the INVESTMENT OPPORTUNITIES section
 
 Important: 
 - Reference the pitch content or founder story in your reasoning
@@ -317,7 +306,7 @@ Important:
   }
 }
 
-async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDecision) {
+async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDecision, pitches: any[]) {
   const portfolioBefore = aiInvestor.portfolio_value || 0;
   
   if (decision.action === 'HOLD') {
@@ -333,27 +322,52 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
     };
   }
 
+  // Get pitch info from dynamic pitches data (not hardcoded array)
+  const pitch = pitches.find(p => p.pitch_id === decision.pitch_id);
+  if (!pitch) {
+    return {
+      success: false,
+      message: `Invalid pitch_id ${decision.pitch_id} - not found in available pitches`,
+      execution: {
+        balanceBefore: aiInvestor.available_tokens,
+        balanceAfter: aiInvestor.available_tokens,
+        portfolioBefore,
+        portfolioAfter: portfolioBefore
+      }
+    };
+  }
+
   if (decision.action === 'BUY' && decision.shares) {
-    const pitch = HM14_PITCHES.find(p => p.id === decision.pitch_id);
     const { data: priceData } = await supabase
       .from('pitch_market_data')
       .select('current_price')
       .eq('pitch_id', decision.pitch_id)
       .single();
 
-    if (!priceData) throw new Error('Price not found');
+    if (!priceData) {
+      return {
+        success: false,
+        message: `Price data not found for ${pitch.company_name}`,
+        execution: {
+          balanceBefore: aiInvestor.available_tokens,
+          balanceAfter: aiInvestor.available_tokens,
+          portfolioBefore,
+          portfolioAfter: portfolioBefore
+        }
+      };
+    }
 
     const totalCost = decision.shares * priceData.current_price;
     const balanceBefore = aiInvestor.available_tokens;
-    const balanceAfter = balanceBefore - totalCost;
     
-    // Strict balance validation
-    if (balanceAfter < 0) {
+    // CRITICAL: Strict balance validation BEFORE any transaction
+    if (totalCost > balanceBefore) {
       // Recalculate maximum possible shares
       const maxShares = Math.floor(balanceBefore / priceData.current_price * 100) / 100;
+      console.error(`[AI Trading] ${aiInvestor.ai_nickname} OVERSPENDING BLOCKED: tried $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}`);
       return { 
         success: false, 
-        message: `Insufficient funds: tried to spend $${totalCost.toFixed(2)} but only have $${balanceBefore.toFixed(2)}. Max shares affordable: ${maxShares}`,
+        message: `${aiInvestor.ai_nickname} tried to overspend: wanted ${decision.shares} shares of ${pitch.company_name} @ $${priceData.current_price} = $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Max affordable: ${maxShares} shares`,
         execution: {
           balanceBefore,
           balanceAfter: balanceBefore,
@@ -365,11 +379,12 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
       };
     }
     
-    // Additional safety check: ensure we're not spending more than total_tokens
+    // Additional safety: ensure we're not spending more than total_tokens
     if (totalCost > aiInvestor.total_tokens) {
+      console.error(`[AI Trading] ${aiInvestor.ai_nickname} INVALID TRADE: cost exceeds total portfolio`);
       return {
         success: false,
-        message: `Invalid trade: trying to spend $${totalCost.toFixed(2)} which exceeds total portfolio value of $${aiInvestor.total_tokens.toFixed(2)}`,
+        message: `${aiInvestor.ai_nickname} invalid trade: $${totalCost.toFixed(2)} exceeds total portfolio $${aiInvestor.total_tokens.toFixed(2)}`,
         execution: {
           balanceBefore,
           balanceAfter: balanceBefore,
@@ -380,6 +395,8 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
         }
       };
     }
+    
+    const balanceAfter = balanceBefore - totalCost;
     
     const { error } = await supabase
       .from('investment_transactions')
@@ -442,7 +459,7 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} bought ${decision.shares.toFixed(2)} shares of ${pitch?.name} for $${totalCost.toFixed(2)} MTK`,
+      message: `${aiInvestor.ai_nickname} bought ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalCost.toFixed(2)} MTK`,
       execution: {
         balanceBefore,
         balanceAfter,
@@ -455,7 +472,19 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
   }
 
   if (decision.action === 'SELL' && decision.shares) {
-    const pitch = HM14_PITCHES.find(p => p.id === decision.pitch_id);
+    const pitch = pitches.find(p => p.pitch_id === decision.pitch_id);
+    if (!pitch) {
+      return {
+        success: false,
+        message: `Invalid pitch_id ${decision.pitch_id} for SELL - not found in available pitches`,
+        execution: {
+          balanceBefore: aiInvestor.available_tokens,
+          balanceAfter: aiInvestor.available_tokens,
+          portfolioBefore,
+          portfolioAfter: portfolioBefore
+        }
+      };
+    }
     
     const { data: existingInvestment } = await supabase
       .from('user_investments')
@@ -538,7 +567,7 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} sold ${decision.shares.toFixed(2)} shares of ${pitch?.name} for $${totalRevenue.toFixed(2)} MTK`,
+      message: `${aiInvestor.ai_nickname} sold ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalRevenue.toFixed(2)} MTK`,
       execution: {
         balanceBefore,
         balanceAfter,
@@ -664,7 +693,7 @@ export async function POST(request: NextRequest) {
             }
           };
         } else {
-          result = await executeTrade(supabase, ai, decision);
+          result = await executeTrade(supabase, ai, decision, pitches);
         }
         
         console.log(`[AI Trading] ${ai.ai_nickname} result: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.message}`);
@@ -675,7 +704,7 @@ export async function POST(request: NextRequest) {
           investor: ai.ai_nickname,
           decision: {
             ...decision,
-            ticker: HM14_PITCHES.find(p => p.id === decision.pitch_id)?.ticker
+            ticker: pitches.find(p => p.pitch_id === decision.pitch_id)?.ticker
           },
           result,
           execution: result.execution
