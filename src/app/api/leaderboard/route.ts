@@ -142,11 +142,21 @@ export async function GET(request: NextRequest) {
     investments?.forEach(inv => pitchIdsSet.add(inv.pitch_id));
     const pitchIds = Array.from(pitchIdsSet);
     
-    // Ticker mapping for HM7 companies
-    const tickerMap: Record<number, string> = {
-      1: 'META', 2: 'MSFT', 3: 'DBX', 4: 'AKAM', 
-      5: 'RDDT', 6: 'WRBY', 7: 'BKNG'
-    };
+    // Fetch ticker mapping from database dynamically
+    const { data: pitchData, error: pitchError } = await supabase
+      .from('pitches')
+      .select('id, ticker')
+      .in('id', pitchIds)
+      .not('ticker', 'is', null);
+    
+    const tickerMap: Record<number, string> = {};
+    pitchData?.forEach(pitch => {
+      if (pitch.ticker) {
+        tickerMap[pitch.id] = pitch.ticker;
+      }
+    });
+    
+    console.log('[Leaderboard] Dynamic ticker map:', tickerMap);
     
     // Fetch real-time prices from Finnhub with shared caching
     const pitchPrices: Record<number, number> = {};
