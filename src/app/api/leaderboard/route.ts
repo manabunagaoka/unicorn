@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
       
       const holdingsValue = userInvestments.reduce((sum, inv) => {
         // Always calculate from real-time prices, not database current_value
-        const value = Math.floor((inv.shares_owned || 0) * (pitchPrices[inv.pitch_id] || 100));
+        const value = (inv.shares_owned || 0) * (pitchPrices[inv.pitch_id] || 100);
         
         // Debug logging for Cloud Surfer
         if (investor.username?.includes('Surfer') || investor.username?.includes('Cloud') || investor.display_name?.includes('Surfer') || investor.display_name?.includes('Cloud')) {
@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
             pitch_id: inv.pitch_id,
             shares: inv.shares_owned,
             price: pitchPrices[inv.pitch_id] || 100,
-            floored_value: value
+            value: value
           });
         }
         
@@ -225,8 +225,8 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Portfolio value = cash + holdings
-      const portfolioValue = Math.floor(investor.available_tokens || 0) + holdingsValue;
+      // Portfolio value = cash + holdings (exact calculation, no rounding)
+      const portfolioValue = (investor.available_tokens || 0) + holdingsValue;
 
       return {
         userId: investor.user_id,
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
         aiStatus: investor.ai_status || 'ACTIVE',
         investorTier: investor.investor_tier || undefined,
         founderTier: investor.founder_tier || undefined,
-        cash: Math.floor(investor.available_tokens || 0),
+        cash: investor.available_tokens || 0,
         holdingsValue,
         portfolioValue,
         holdings: userInvestments.map(inv => ({
