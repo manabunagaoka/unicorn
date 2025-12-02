@@ -189,9 +189,9 @@ export async function GET(request: NextRequest) {
       balance: {
         total_tokens: balance.total_tokens,
         available_tokens: balance.available_tokens,
-        portfolio_value: totalInvested, // Changed from totalPortfolioValue - use cost basis, not market value
+        portfolio_value: totalPortfolioValue, // Current market value of all holdings
         all_time_gain_loss: totalGainLoss,
-        total_invested: balance.total_invested
+        total_invested: totalInvested
       },
       investments: investmentsWithPrices,
       _version: '2025-11-08-v8', // Force cache invalidation
