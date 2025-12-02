@@ -6,7 +6,7 @@ WHERE user_id IN ('YOUR_USER_ID_HERE', 'PASTE_YOUR_REAL_UUID_HERE');
 ALTER TABLE user_token_balances RENAME COLUMN ai_nickname TO display_name;
 ALTER TABLE ai_trading_logs RENAME COLUMN ai_nickname TO display_name;
 
--- STEP 2: Add your admin account with correct credentials
+-- STEP 2: Update your existing account or insert if not exists
 INSERT INTO user_token_balances (
   user_id,
   user_email,
@@ -27,7 +27,14 @@ INSERT INTO user_token_balances (
   false,
   true,
   NOW()
-);
+)
+ON CONFLICT (user_id) DO UPDATE SET
+  user_email = EXCLUDED.user_email,
+  display_name = EXCLUDED.display_name,
+  available_tokens = EXCLUDED.available_tokens,
+  total_tokens = EXCLUDED.total_tokens,
+  total_invested = EXCLUDED.total_invested,
+  is_active = EXCLUDED.is_active;
 
 -- Verify: should show 11 total (10 AIs + 1 admin)
 SELECT COUNT(*) as total_users FROM user_token_balances;

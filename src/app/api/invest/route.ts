@@ -5,36 +5,57 @@ import { createClient } from '@supabase/supabase-js';
 // Force dynamic rendering - don't pre-render at build time
 export const dynamic = 'force-dynamic';
 
-// Verify user from Manaboodle SSO
+// Verify user from Manaboodle SSO or Supabase Auth
 async function verifyUser(request: NextRequest) {
+  // First try Manaboodle SSO
   const token = request.cookies.get('manaboodle_sso_token')?.value;
   
-  if (!token) {
-    return null;
-  }
+  if (token) {
+    try {
+      const response = await fetch('https://www.manaboodle.com/api/sso/verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-  try {
-    const response = await fetch('https://www.manaboodle.com/api/sso/verify', {
-      headers: {
-        'Authorization': `Bearer ${token}`
+      if (response.ok) {
+        const data = await response.json();
+        const user = data.user || data;
+        
+        return {
+          id: user.id,
+          email: user.email
+        };
       }
-    });
-
-    if (!response.ok) {
-      return null;
+    } catch (error) {
+      console.error('SSO verification error:', error);
     }
-
-    const data = await response.json();
-    const user = data.user || data;
-    
-    return {
-      id: user.id,
-      email: user.email
-    };
-  } catch (error) {
-    console.error('SSO verification error:', error);
-    return null;
   }
+  
+  // Fallback: Try Supabase Auth
+  try {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const supabaseToken = authHeader.substring(7);
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      );
+      
+      const { data: { user }, error } = await supabase.auth.getUser(supabaseToken);
+      
+      if (user && !error) {
+        return {
+          id: user.id,
+          email: user.email!
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Supabase auth error:', error);
+  }
+  
+  return null;
 }
 
 // POST - Buy shares
@@ -93,11 +114,28 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (balanceError || !balance) {
-      // Don't auto-create - user must be set up by admin first
-      return NextResponse.json(
-        { error: 'Account not found. Please contact admin to set up your trading account.' },
-        { status: 403 }
-      );
+      // Create new user balance with 1M MTK and display_name
+      const { data: newBalance, error: createError } = await supabase
+        .from('user_token_balances')
+        .insert({
+          user_id: user.id,
+          user_email: user.email,
+          display_name: user.email.split('@')[0], // Use email prefix as display name
+          total_tokens: 1000000,
+          available_tokens: 1000000,
+          is_ai_investor: false
+        })
+        .select()
+        .single();
+
+      if (createError || !newBalance) {
+        console.error('Failed to create user balance:', createError);
+        return NextResponse.json(
+          { error: 'Failed to create user balance' },
+          { status: 500 }
+        );
+      }
+      balance = newBalance;
     }
 
     // Get current market data
