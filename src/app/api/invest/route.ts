@@ -93,26 +93,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (balanceError || !balance) {
-      // Create new user balance with 1M MTK
-      const { data: newBalance, error: createError } = await supabase
-        .from('user_token_balances')
-        .insert({
-          user_id: user.id,
-          user_email: user.email,
-          total_tokens: 1000000,
-          available_tokens: 1000000,
-          is_ai_investor: false
-        })
-        .select()
-        .single();
-
-      if (createError || !newBalance) {
-        return NextResponse.json(
-          { error: 'Failed to create user balance' },
-          { status: 500 }
-        );
-      }
-      balance = newBalance;
+      // Don't auto-create - user must be set up by admin first
+      return NextResponse.json(
+        { error: 'Account not found. Please contact admin to set up your trading account.' },
+        { status: 403 }
+      );
     }
 
     // Get current market data
