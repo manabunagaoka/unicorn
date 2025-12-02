@@ -142,21 +142,15 @@ export async function GET(request: NextRequest) {
     investments?.forEach(inv => pitchIdsSet.add(inv.pitch_id));
     const pitchIds = Array.from(pitchIdsSet);
     
-    // Fetch ticker mapping from database dynamically
-    const { data: pitchData, error: pitchError } = await supabase
-      .from('pitches')
-      .select('id, ticker')
-      .in('id', pitchIds)
-      .not('ticker', 'is', null);
+    // Company ticker mapping (HM14 - Harvard Magnificent 14)
+    // Must match portfolio API for consistency
+    const tickerMap: Record<number, string> = {
+      1: 'META', 2: 'MSFT', 3: 'ABNB', 4: 'NET', 5: 'GRAB',
+      6: 'MRNA', 7: 'KVYO', 8: 'AFRM', 9: 'PTON', 10: 'ASAN',
+      11: 'LYFT', 12: 'TDUP', 13: 'KIND', 14: 'RENT'
+    };
     
-    const tickerMap: Record<number, string> = {};
-    pitchData?.forEach(pitch => {
-      if (pitch.ticker) {
-        tickerMap[pitch.id] = pitch.ticker;
-      }
-    });
-    
-    console.log('[Leaderboard] Dynamic ticker map:', tickerMap);
+    console.log('[Leaderboard] Using HM14 ticker map:', tickerMap);
     
     // Fetch real-time prices from Finnhub with shared caching
     const pitchPrices: Record<number, number> = {};
