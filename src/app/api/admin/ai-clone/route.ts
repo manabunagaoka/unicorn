@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const newUserId = `ai_clone_${timestamp}`;
     const newEmail = `ai_clone_${timestamp}@rize.com`;
-    const newNickname = `${sourceAI.ai_nickname} 2`;
+    const newNickname = `${sourceAI.display_name} 2`;
 
     // Create cloned AI investor
     const { error: insertError } = await supabase
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         user_email: newEmail,
         is_ai_investor: true,
         is_active: true,
-        ai_nickname: newNickname,
+        display_name: newNickname,
         ai_emoji: sourceAI.ai_emoji,
         ai_strategy: sourceAI.ai_strategy,
         ai_catchphrase: sourceAI.ai_catchphrase,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Successfully cloned ${sourceAI.ai_nickname} as ${newNickname}`,
+      message: `Successfully cloned ${sourceAI.display_name} as ${newNickname}`,
       newUserId,
       newNickname
     });

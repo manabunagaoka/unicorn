@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       const formattedUser = {
         userId: ai.user_id,
         email: ai.user_email,
-        nickname: ai.ai_nickname,
+        nickname: ai.display_name,
         emoji: ai.ai_emoji,
         strategy: ai.ai_strategy,
         catchphrase: ai.ai_catchphrase,

@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Verify user is an AI investor
     const { data: user, error: userError } = await supabase
       .from('user_token_balances')
-      .select('user_id, ai_nickname, is_ai_investor')
+      .select('user_id, display_name, is_ai_investor')
       .eq('user_id', userId)
       .single();
 
@@ -89,11 +89,11 @@ export async function POST(request: NextRequest) {
       // Non-critical, continue
     }
 
-    console.log(`✅ Reset AI investor ${user.ai_nickname} (${userId}) - Balance: $1M, History cleared`);
+    console.log(`✅ Reset AI investor ${user.display_name} (${userId}) - Balance: $1M, History cleared`);
 
     return NextResponse.json({ 
       success: true,
-      message: `Reset ${user.ai_nickname} successfully`,
+      message: `Reset ${user.display_name} successfully`,
       newBalance: 1000000
     });
 

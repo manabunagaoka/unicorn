@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { data: cloudSurfer } = await supabase
       .from('user_token_balances')
       .select('*')
-      .ilike('ai_nickname', '%Cloud%Surfer%')
+      .ilike('display_name', '%Cloud%Surfer%')
       .single();
 
     if (!cloudSurfer) {
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const totalValue = cash + holdingsValue;
 
     return NextResponse.json({
-      ai_nickname: cloudSurfer.ai_nickname,
+      display_name: cloudSurfer.display_name,
       user_id: cloudSurfer.user_id,
       
       calculated_correct: {

@@ -51,7 +51,7 @@ export async function GET() {
     const userIds = Array.from(new Set(recentTrades.map(t => t.user_id)));
     const { data: users, error: usersError } = await supabase
       .from('user_token_balances')
-      .select('user_id, username, ai_nickname, is_ai_investor, ai_emoji')
+      .select('user_id, username, display_name, is_ai_investor, ai_emoji')
       .in('user_id', userIds);
 
     if (usersError) {
@@ -85,7 +85,7 @@ export async function GET() {
         id: trade.id,
         type: trade.transaction_type,
         investorName: user?.is_ai_investor 
-          ? `${user.ai_emoji || '🤖'} ${user.ai_nickname}` 
+          ? `${user.ai_emoji || '🤖'} ${user.display_name}` 
           : user?.username || 'Unknown',
         isAI: user?.is_ai_investor || false,
         ticker: pitch?.ticker || `PITCH-${trade.pitch_id}`,
@@ -101,7 +101,7 @@ export async function GET() {
     // For now, return current portfolio values
     const { data: currentPortfolios, error: portfolioError } = await supabase
       .from('user_token_balances')
-      .select('user_id, username, ai_nickname, is_ai_investor, available_tokens, portfolio_value')
+      .select('user_id, username, display_name, is_ai_investor, available_tokens, portfolio_value')
       .order('portfolio_value', { ascending: false })
       .limit(10);
 
@@ -110,7 +110,7 @@ export async function GET() {
     return NextResponse.json({
       recentActivity: enrichedTrades.slice(0, 20), // Last 20 trades
       topInvestors: currentPortfolios?.map(inv => ({
-        name: inv.is_ai_investor ? inv.ai_nickname : inv.username,
+        name: inv.is_ai_investor ? inv.display_name : inv.username,
         isAI: inv.is_ai_investor,
         portfolioValue: inv.portfolio_value,
         cash: inv.available_tokens

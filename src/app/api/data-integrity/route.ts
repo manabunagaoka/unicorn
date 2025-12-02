@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Debug: Check what Supabase returned for Cloud Surfer
     const cloudSurferBalance = balances?.find(b => 
       b.username?.includes('Surfer') || b.username?.includes('Cloud') || 
-      b.ai_nickname?.includes('Surfer') || b.ai_nickname?.includes('Cloud')
+      b.display_name?.includes('Surfer') || b.display_name?.includes('Cloud')
     );
     if (cloudSurferBalance) {
       console.log('[DataIntegrity] Cloud Surfer RAW from Supabase:', {
@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
     // Build comparison data for each user
     const users = await Promise.all(balances?.map(async (balance) => {
       // Debug logging for Cloud Surfer
-      if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.ai_nickname?.includes('Surfer') || balance.ai_nickname?.includes('Cloud')) {
-        console.log(`[DataIntegrity] Processing ${balance.username || balance.ai_nickname}:`, {
+      if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.display_name?.includes('Surfer') || balance.display_name?.includes('Cloud')) {
+        console.log(`[DataIntegrity] Processing ${balance.username || balance.display_name}:`, {
           user_id: balance.user_id,
           available_tokens_raw: balance.available_tokens,
           available_tokens_type: typeof balance.available_tokens
@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
           const currentValue = Math.floor(inv.shares_owned * currentPrice); // Floor each investment
           
           // Debug logging for Cloud Surfer
-          if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.ai_nickname?.includes('Surfer') || balance.ai_nickname?.includes('Cloud')) {
-            console.log(`[DataIntegrity] ${balance.username || balance.ai_nickname} Investment:`, {
+          if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.display_name?.includes('Surfer') || balance.display_name?.includes('Cloud')) {
+            console.log(`[DataIntegrity] ${balance.username || balance.display_name} Investment:`, {
               pitch_id: inv.pitch_id,
               ticker,
               shares: inv.shares_owned,
@@ -158,8 +158,8 @@ export async function GET(request: NextRequest) {
       const uiRoi = dbTotalInvested > 0 ? ((uiHoldingsValue - dbTotalInvested) / dbTotalInvested * 100) : 0;
 
       // Debug logging for Cloud Surfer
-      if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.ai_nickname?.includes('Surfer') || balance.ai_nickname?.includes('Cloud')) {
-        console.log(`[DataIntegrity] ${balance.username || balance.ai_nickname} TOTALS:`, {
+      if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.display_name?.includes('Surfer') || balance.display_name?.includes('Cloud')) {
+        console.log(`[DataIntegrity] ${balance.username || balance.display_name} TOTALS:`, {
           raw_available_tokens: balance.available_tokens,
           dbCash: dbCash,
           uiCash_floored: uiCash,
@@ -178,9 +178,9 @@ export async function GET(request: NextRequest) {
       return {
         userId: balance.user_id,
         // ALWAYS show nickname for display, email only for admin identification
-        displayName: balance.username || balance.ai_nickname || `User-${balance.user_id}`,
+        displayName: balance.username || balance.display_name || `User-${balance.user_id}`,
         email: balance.user_email || null, // Keep for admin reference only
-        isAI: !!balance.ai_nickname,
+        isAI: !!balance.display_name,
         ui: {
           cash: uiCash,
           portfolioValue: uiHoldingsValue,

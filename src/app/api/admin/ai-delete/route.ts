@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Get AI nickname for confirmation message
     const { data: ai } = await supabase
       .from('user_token_balances')
-      .select('ai_nickname')
+      .select('display_name')
       .eq('user_id', userId)
       .eq('is_ai_investor', true)
       .single();
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true,
-      message: `AI investor "${ai.ai_nickname}" permanently deleted` 
+      message: `AI investor "${ai.display_name}" permanently deleted` 
     });
   } catch (error) {
     console.error('Delete AI error:', error);

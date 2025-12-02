@@ -211,7 +211,7 @@ async function getAITradeDecision(
     ? `${Math.min(...validPitchIds)}-${Math.max(...validPitchIds)}` 
     : '1-14';
   
-  const prompt = `You are "${aiInvestor.ai_nickname}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
+  const prompt = `You are "${aiInvestor.display_name}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
 Your catchphrase: "${aiInvestor.ai_catchphrase}"
 
 ⚡ CRITICAL: STAY IN CHARACTER! Be EXTREME and TRUE to your personality!
@@ -269,7 +269,7 @@ Make ONE bold trade decision. Respond with valid JSON only:
 
 Important: 
 - Reference the pitch content or founder story in your reasoning
-- Show your personality in the reasoning - make it CLEAR you're ${aiInvestor.ai_nickname}!
+- Show your personality in the reasoning - make it CLEAR you're ${aiInvestor.display_name}!
 - If you have TOO MUCH cash for your strategy, you MUST trade!`;
 
   try {
@@ -364,10 +364,10 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
     if (totalCost > balanceBefore) {
       // Recalculate maximum possible shares
       const maxShares = Math.floor(balanceBefore / priceData.current_price * 100) / 100;
-      console.error(`[AI Trading] ${aiInvestor.ai_nickname} OVERSPENDING BLOCKED: tried $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}`);
+      console.error(`[AI Trading] ${aiInvestor.display_name} OVERSPENDING BLOCKED: tried $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}`);
       return { 
         success: false, 
-        message: `${aiInvestor.ai_nickname} tried to overspend: wanted ${decision.shares} shares of ${pitch.company_name} @ $${priceData.current_price} = $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Max affordable: ${maxShares} shares`,
+        message: `${aiInvestor.display_name} tried to overspend: wanted ${decision.shares} shares of ${pitch.company_name} @ $${priceData.current_price} = $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Max affordable: ${maxShares} shares`,
         execution: {
           balanceBefore,
           balanceAfter: balanceBefore,
@@ -381,10 +381,10 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
     
     // Additional safety: ensure we're not spending more than total_tokens
     if (totalCost > aiInvestor.total_tokens) {
-      console.error(`[AI Trading] ${aiInvestor.ai_nickname} INVALID TRADE: cost exceeds total portfolio`);
+      console.error(`[AI Trading] ${aiInvestor.display_name} INVALID TRADE: cost exceeds total portfolio`);
       return {
         success: false,
-        message: `${aiInvestor.ai_nickname} invalid trade: $${totalCost.toFixed(2)} exceeds total portfolio $${aiInvestor.total_tokens.toFixed(2)}`,
+        message: `${aiInvestor.display_name} invalid trade: $${totalCost.toFixed(2)} exceeds total portfolio $${aiInvestor.total_tokens.toFixed(2)}`,
         execution: {
           balanceBefore,
           balanceAfter: balanceBefore,
@@ -459,7 +459,7 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} bought ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalCost.toFixed(2)} MTK`,
+      message: `${aiInvestor.display_name} bought ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalCost.toFixed(2)} MTK`,
       execution: {
         balanceBefore,
         balanceAfter,
@@ -567,7 +567,7 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} sold ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalRevenue.toFixed(2)} MTK`,
+      message: `${aiInvestor.display_name} sold ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalRevenue.toFixed(2)} MTK`,
       execution: {
         balanceBefore,
         balanceAfter,
@@ -597,7 +597,7 @@ async function logTrade(supabase: any, aiInvestor: any, prompt: string, rawRespo
       .from('ai_trading_logs')
       .insert({
         user_id: aiInvestor.user_id,
-        ai_nickname: aiInvestor.ai_nickname,
+        display_name: aiInvestor.display_name,
         ai_strategy: aiInvestor.ai_strategy,
         cash_before: aiInvestor.available_tokens,
         portfolio_value_before: aiInvestor.total_tokens,
@@ -642,7 +642,7 @@ export async function POST(request: NextRequest) {
     const aiInvestors = await getAIInvestor(supabase, userId);
     
     // CRITICAL: Verify we only got one AI
-    console.log('[AI Trading Trigger] Found AIs:', aiInvestors.map((ai: any) => ai.ai_nickname));
+    console.log('[AI Trading Trigger] Found AIs:', aiInvestors.map((ai: any) => ai.display_name));
     
     if (userId && aiInvestors.length !== 1) {
       throw new Error(`Expected 1 AI for userId ${userId}, got ${aiInvestors.length}`);
@@ -653,7 +653,7 @@ export async function POST(request: NextRequest) {
     
     for (const ai of aiInvestors) {
       try {
-        console.log(`[AI Trading] Processing: ${ai.ai_nickname} (${ai.user_id})`);
+        console.log(`[AI Trading] Processing: ${ai.display_name} (${ai.user_id})`);
         
         // CRITICAL: Fetch FRESH balance right before trading
         const { data: freshBalance, error: balanceError } = await supabase
@@ -668,7 +668,7 @@ export async function POST(request: NextRequest) {
         ai.available_tokens = freshBalance.available_tokens;
         ai.total_tokens = freshBalance.total_tokens;
         
-        console.log(`[AI Trading] ${ai.ai_nickname} fresh balance: $${ai.available_tokens.toFixed(2)}`);
+        console.log(`[AI Trading] ${ai.display_name} fresh balance: $${ai.available_tokens.toFixed(2)}`);
         
         const portfolio = await getAIPortfolio(supabase, ai.user_id);
         
@@ -677,7 +677,7 @@ export async function POST(request: NextRequest) {
         // Check if this was an error from OpenAI (will have "Technical difficulties" in reasoning)
         const isAPIError = decision.reasoning.includes('Technical difficulties') || decision.reasoning.includes('error');
         
-        console.log(`[AI Trading] ${ai.ai_nickname} decision: ${decision.action}${isAPIError ? ' (API ERROR)' : ''}`);
+        console.log(`[AI Trading] ${ai.display_name} decision: ${decision.action}${isAPIError ? ' (API ERROR)' : ''}`);
         
         let result;
         if (isAPIError) {
@@ -696,12 +696,12 @@ export async function POST(request: NextRequest) {
           result = await executeTrade(supabase, ai, decision, pitches);
         }
         
-        console.log(`[AI Trading] ${ai.ai_nickname} result: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.message}`);
+        console.log(`[AI Trading] ${ai.display_name} result: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.message}`);
         
         await logTrade(supabase, ai, prompt, rawResponse, decision, result, triggeredBy);
         
         results.push({
-          investor: ai.ai_nickname,
+          investor: ai.display_name,
           decision: {
             ...decision,
             ticker: pitches.find(p => p.pitch_id === decision.pitch_id)?.ticker
@@ -715,9 +715,9 @@ export async function POST(request: NextRequest) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       } catch (error) {
-        console.error(`Error processing ${ai.ai_nickname}:`, error);
+        console.error(`Error processing ${ai.display_name}:`, error);
         results.push({
-          investor: ai.ai_nickname,
+          investor: ai.display_name,
           error: error instanceof Error ? error.message : String(error)
         });
       }

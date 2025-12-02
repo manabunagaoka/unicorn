@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       user_id: balance.user_id,
-      ai_nickname: balance.ai_nickname,
+      display_name: balance.display_name,
       
       database_raw: {
         cash_with_decimals: dbCash,

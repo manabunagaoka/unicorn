@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       .from('user_token_balances')
       .select('*')
       .eq('is_ai_investor', true)
-      .order('ai_nickname');
+      .order('display_name');
 
     if (aiError) throw aiError;
 
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
           const gainPercent = inv.total_invested > 0 ? ((gain / inv.total_invested) * 100) : 0;
 
           // Debug logging for Cloud Surfer
-          if (ai.ai_nickname?.includes('Surfer') || ai.ai_nickname?.includes('Cloud')) {
-            console.log(`[AIInvestors] ${ai.ai_nickname} Investment:`, {
+          if (ai.display_name?.includes('Surfer') || ai.display_name?.includes('Cloud')) {
+            console.log(`[AIInvestors] ${ai.display_name} Investment:`, {
               pitch_id: inv.pitch_id,
               ticker,
               shares: inv.shares_owned,
@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
       const roi = ai.total_invested > 0 ? ((totalGains / ai.total_invested) * 100) : 0;
 
       // Debug logging for Cloud Surfer
-      if (ai.ai_nickname?.includes('Surfer') || ai.ai_nickname?.includes('Cloud')) {
-        console.log(`[AIInvestors] ${ai.ai_nickname} TOTALS:`, {
+      if (ai.display_name?.includes('Surfer') || ai.display_name?.includes('Cloud')) {
+        console.log(`[AIInvestors] ${ai.display_name} TOTALS:`, {
           cash: Math.floor(ai.available_tokens || 0),
           holdings_value: holdingsValue,
           portfolio_value: portfolioValue,
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
       return {
         userId: ai.user_id,
         email: ai.user_email,
-        nickname: ai.ai_nickname,
+        nickname: ai.display_name,
         emoji: ai.ai_emoji,
         strategy: ai.ai_strategy,
         catchphrase: ai.ai_catchphrase,

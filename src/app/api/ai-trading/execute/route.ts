@@ -120,7 +120,7 @@ async function getAITradeDecision(
 
   const strategyLimits = getStrategyLimits(aiInvestor.ai_strategy, aiInvestor.available_tokens);
   
-  const prompt = `You are "${aiInvestor.ai_nickname}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
+  const prompt = `You are "${aiInvestor.display_name}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
 Your catchphrase: "${aiInvestor.ai_catchphrase}"
 
 ⚡ CRITICAL: STAY IN CHARACTER! Be EXTREME and TRUE to your personality!
@@ -162,7 +162,7 @@ Make ONE bold trade decision. Respond with valid JSON only:
 Important: 
 - Calculate shares: (your budget) / (current stock price)
 - Reference the pitch content or founder story in your reasoning
-- Show your personality in the reasoning - make it CLEAR you're ${aiInvestor.ai_nickname}!`;
+- Show your personality in the reasoning - make it CLEAR you're ${aiInvestor.display_name}!`;
 
   try {
     const openai = getOpenAIClient();
@@ -269,7 +269,7 @@ async function executeTrade(aiInvestor: any, decision: AITradeDecision) {
   const supabase = getSupabaseServer();
   
   if (decision.action === 'HOLD') {
-    console.log(`${aiInvestor.ai_nickname} decided to HOLD`);
+    console.log(`${aiInvestor.display_name} decided to HOLD`);
     return { success: true, message: 'Holding position' };
   }
 
@@ -290,7 +290,7 @@ async function executeTrade(aiInvestor: any, decision: AITradeDecision) {
     
     // ⚠️ SAFETY CHECK: Prevent over-leveraging
     if (balanceAfter < 0) {
-      console.warn(`🚫 ${aiInvestor.ai_nickname} tried to buy ${decision.shares} shares of pitch ${decision.pitch_id} for $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Trade rejected.`);
+      console.warn(`🚫 ${aiInvestor.display_name} tried to buy ${decision.shares} shares of pitch ${decision.pitch_id} for $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Trade rejected.`);
       return { 
         success: false, 
         message: `Insufficient funds: needed $${totalCost.toFixed(2)}, available $${balanceBefore.toFixed(2)}` 
@@ -361,7 +361,7 @@ async function executeTrade(aiInvestor: any, decision: AITradeDecision) {
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} bought ${decision.shares.toFixed(2)} shares of ${pitch?.name} for ${totalCost.toFixed(2)} MTK`
+      message: `${aiInvestor.display_name} bought ${decision.shares.toFixed(2)} shares of ${pitch?.name} for ${totalCost.toFixed(2)} MTK`
     };
   }
 
@@ -450,7 +450,7 @@ async function executeTrade(aiInvestor: any, decision: AITradeDecision) {
 
     return {
       success: true,
-      message: `${aiInvestor.ai_nickname} sold ${decision.shares.toFixed(2)} shares of ${pitch?.name} for ${totalRevenue.toFixed(2)} MTK`
+      message: `${aiInvestor.display_name} sold ${decision.shares.toFixed(2)} shares of ${pitch?.name} for ${totalRevenue.toFixed(2)} MTK`
     };
   }
 
@@ -499,7 +499,7 @@ export async function POST(request: Request) {
             // Small delay between trades
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (tradeError) {
-            console.error(`Trade ${i+1} error for ${ai.ai_nickname}:`, tradeError);
+            console.error(`Trade ${i+1} error for ${ai.display_name}:`, tradeError);
             aiResults.push({
               decision: { action: 'HOLD', pitch_id: 1, reasoning: 'Trade error' },
               result: { success: false, message: String(tradeError) }
@@ -508,17 +508,17 @@ export async function POST(request: Request) {
         }
         
         results.push({
-          investor: ai.ai_nickname,
+          investor: ai.display_name,
           trades: aiResults
         });
 
         // Small delay to avoid rate limits
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(`Error processing ${ai.ai_nickname}:`, error);
+        console.error(`Error processing ${ai.display_name}:`, error);
         const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
         results.push({
-          investor: ai.ai_nickname,
+          investor: ai.display_name,
           error: errorMessage
         });
       }

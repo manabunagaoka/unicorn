@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         user_email,
         username,
         is_ai_investor,
-        ai_nickname,
+        display_name,
         ai_emoji,
         ai_strategy,
         ai_catchphrase,
@@ -195,8 +195,8 @@ export async function GET(request: NextRequest) {
         const value = Math.floor((inv.shares_owned || 0) * (pitchPrices[inv.pitch_id] || 100));
         
         // Debug logging for Cloud Surfer
-        if (investor.username?.includes('Surfer') || investor.username?.includes('Cloud') || investor.ai_nickname?.includes('Surfer') || investor.ai_nickname?.includes('Cloud')) {
-          console.log(`[Leaderboard] ${investor.username || investor.ai_nickname} Investment:`, {
+        if (investor.username?.includes('Surfer') || investor.username?.includes('Cloud') || investor.display_name?.includes('Surfer') || investor.display_name?.includes('Cloud')) {
+          console.log(`[Leaderboard] ${investor.username || investor.display_name} Investment:`, {
             pitch_id: inv.pitch_id,
             shares: inv.shares_owned,
             price: pitchPrices[inv.pitch_id] || 100,
@@ -208,8 +208,8 @@ export async function GET(request: NextRequest) {
       }, 0);
 
       // Debug logging for specific user
-      if (investor.user_id === '19be07bc-28d0-4ac6-956b-714eef1ccc85' || investor.user_id === user?.id || investor.username?.includes('Surfer') || investor.username?.includes('Cloud') || investor.ai_nickname?.includes('Surfer') || investor.ai_nickname?.includes('Cloud')) {
-        console.log(`[Leaderboard] ${investor.username || investor.user_email || investor.ai_nickname} TOTALS:`, {
+      if (investor.user_id === '19be07bc-28d0-4ac6-956b-714eef1ccc85' || investor.user_id === user?.id || investor.username?.includes('Surfer') || investor.username?.includes('Cloud') || investor.display_name?.includes('Surfer') || investor.display_name?.includes('Cloud')) {
+        console.log(`[Leaderboard] ${investor.username || investor.user_email || investor.display_name} TOTALS:`, {
           user_id: investor.user_id,
           cash: investor.available_tokens,
           cash_updated_at: investor.updated_at,
@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
       return {
         userId: investor.user_id,
         email: investor.user_email,
-        username: investor.username || investor.ai_nickname || investor.user_email,
+        username: investor.username || investor.display_name || investor.user_email,
         isAI: investor.is_ai_investor || false,
         aiEmoji: investor.ai_emoji || '',
         aiStrategy: investor.ai_strategy || undefined,
