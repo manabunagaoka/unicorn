@@ -36,8 +36,7 @@ export async function GET(request: NextRequest) {
       .from('user_token_balances')
       .select('*')
       .lte('updated_at', queryTime) // Force fresh query
-      .order('updated_at', { ascending: false })
-      .limit(50); // Top 50 most recent users
+      .order('updated_at', { ascending: false });
 
     if (balancesError) {
       throw balancesError;
@@ -69,10 +68,11 @@ export async function GET(request: NextRequest) {
       throw investmentsError;
     }
 
-    // Ticker map for display
+    // Ticker map for HM14 companies
     const tickerMap: Record<number, string> = {
-      1: 'META', 2: 'MSFT', 3: 'DBX', 4: 'AKAM',
-      5: 'RDDT', 6: 'WRBY', 7: 'BKNG'
+      1: 'META', 2: 'MSFT', 3: 'ABNB', 4: 'NET', 5: 'GRAB',
+      6: 'MRNA', 7: 'KVYO', 8: 'AFRM', 9: 'PTON', 10: 'ASAN',
+      11: 'LYFT', 12: 'TDUP', 13: 'KIND', 14: 'RENT'
     };
 
     // Build comparison data for each user
