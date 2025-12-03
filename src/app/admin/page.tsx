@@ -726,7 +726,7 @@ export default function UnicornAdmin() {
               <div className="bg-blue-900/30 rounded-lg p-6 border border-blue-500">
                 <div className="text-blue-400 text-sm mb-1">Platform Value</div>
                 <div className="text-2xl font-bold text-blue-400">
-                  ${users.reduce((sum, u) => sum + (u.ui?.totalValue || 0), 0).toLocaleString()}
+                  ${users.reduce((sum, u) => sum + (u.ui?.totalValue || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
             </div>
