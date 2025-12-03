@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
       const dbHoldingsCount = userInvestments.length;
 
       // UI data (what APIs return with live prices)
-      const uiCash = Math.floor(dbCash); // Portfolio API floors cash
+      const uiCash = dbCash; // Keep exact cents
       const uiHoldingsValue = holdingsValue; // Already floored above
       const uiTotal = uiCash + uiHoldingsValue;
       const uiHoldingsCount = dbHoldingsCount; // Should match
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
         // ALWAYS show nickname for display, email only for admin identification
         displayName: balance.username || balance.display_name || `User-${balance.user_id}`,
         email: balance.user_email || null, // Keep for admin reference only
-        isAI: !!balance.display_name,
+        isAI: balance.is_ai_investor || false,
         ui: {
           cash: uiCash,
           portfolioValue: uiHoldingsValue,
