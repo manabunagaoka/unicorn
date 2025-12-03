@@ -192,7 +192,10 @@ async function getAITradeDecision(
       }).join('\n')
     : 'No current holdings - 100% cash!';
 
-  const marketData = pitches.map(p => {
+  // Randomize pitch order to prevent bias toward first companies
+  const shuffledPitches = [...pitches].sort(() => Math.random() - 0.5);
+  
+  const marketData = shuffledPitches.map(p => {
     return `[Pitch ID: ${p.pitch_id}] ${p.company_name} (${p.ticker}) - ${p.category}
     Price: $${p.current_price?.toFixed(2)} (${p.price_change_24h >= 0 ? '+' : ''}${p.price_change_24h?.toFixed(2)}% today)
     Pitch: "${p.elevator_pitch}"
@@ -267,9 +270,25 @@ Make ONE bold trade decision. Respond with valid JSON only:
 - Double-check: (shares × price) must be ≤ your available cash
 - Use ONLY the Pitch IDs listed above in the INVESTMENT OPPORTUNITIES section
 
+🎯 DIFFERENTIATION RULES - READ THIS CAREFULLY:
+1. AVOID THE OBVIOUS: Don't just pick the biggest brand or highest price
+2. DIG DEEPER: Analyze the fun fact, founder story, and unique pitch angle
+3. FIND HIDDEN VALUE: Look for companies solving unique problems or unconventional approaches
+4. MISSION MATTERS: Consider what makes each company's mission different from others
+5. FOUNDER PERSONA: Does the founder's background reveal something special?
+6. BE CONTRARIAN (if it fits your strategy): The most popular choice isn't always the best
+
+💡 SMART INVESTOR TIP:
+Instead of gravitating to familiar names, ask yourself:
+- Which pitch reveals the most UNIQUE founder insight?
+- Which fun fact shows the most UNCONVENTIONAL approach?
+- Which company is solving a problem NO ONE ELSE is addressing?
+- Which mission statement resonates most with YOUR strategy?
+
 Important: 
 - Reference the pitch content or founder story in your reasoning
 - Show your personality in the reasoning - make it CLEAR you're ${aiInvestor.display_name}!
+- Explain WHY this company's unique angle matches YOUR specific strategy
 - If you have TOO MUCH cash for your strategy, you MUST trade!`;
 
   try {
