@@ -4,7 +4,7 @@ import Link from 'next/link';
 import CompetitionsClient from './CompetitionsClient';
 
 async function getUserFromToken() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('manaboodle_sso_token')?.value;
   
   if (!token) {

@@ -7,8 +7,8 @@ import { getUser } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const user = await getUser();
-  const cookieStore = cookies();
-  const headersList = headers();
+  const cookieStore = await cookies();
+  const headersList = await headers();
   
   const allCookies = cookieStore.getAll();
   const ssoToken = cookieStore.get('manaboodle_sso_token');

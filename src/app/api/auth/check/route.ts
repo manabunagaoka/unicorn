@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 // Force dynamic rendering - don't pre-render at build time
 export const dynamic = 'force-dynamic';
 async function getUserFromToken() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('manaboodle_sso_token')?.value;
   
   if (!token) {

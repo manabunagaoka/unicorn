@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import PortfolioClient from './PortfolioClient';
 
 async function getUser() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('sso_token');
   
   if (!token) {

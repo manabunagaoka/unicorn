@@ -5,9 +5,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export async function GET(
   request: NextRequest,
-  { params }: { params: { ticker: string } }
+  { params }: { params: Promise<{ ticker: string }> }
 ) {
-  const ticker = params.ticker;
+  const { ticker } = await params;
   const apiKey = process.env.STOCK_API_KEY;
   
   // Check if this is a manual refresh request (has timestamp param)

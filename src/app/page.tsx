@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import LandingPage from './LandingPageNew';
 
 async function getUserFromToken() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('manaboodle_sso_token')?.value;
   
   if (!token) {

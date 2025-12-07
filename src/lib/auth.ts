@@ -47,7 +47,7 @@ export interface ManaboodleUser {
  * }
  */
 export async function getUser(): Promise<ManaboodleUser | null> {
-  const headersList = headers();
+  const headersList = await headers();
   
   const id = headersList.get('x-user-id');
   const email = headersList.get('x-user-email');
