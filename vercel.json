@@ -6,6 +6,5 @@
     }
   ],
   "buildCommand": "next build",
-  "framework": "nextjs",
-  "_comment": "AI trading cron DISABLED Dec 10 - balance validation broken, allowing unlimited spending. DO NOT re-enable until fixes tested 10+ times."
+  "framework": "nextjs"
 }
