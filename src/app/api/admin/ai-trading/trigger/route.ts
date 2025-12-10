@@ -72,25 +72,31 @@ async function getPitchData(supabase: any) {
   
   // Fetch live prices
   const enrichedPitches = await Promise.all(data.map(async (pitch: any) => {
-    let livePrice = pitch.current_price; // Start with view's price
+    let livePrice = pitch.current_price; // Start with view's price (database)
+    let priceSource = 'database';
     
     if (pitch.ticker && process.env.STOCK_API_KEY) {
       try {
         const apiPrice = await fetchPriceWithCache(pitch.ticker, pitch.pitch_id, process.env.STOCK_API_KEY);
         if (apiPrice && apiPrice > 0) {
-          livePrice = apiPrice; // Only override if API returns valid price
+          livePrice = apiPrice; // Override with fresh API price
+          priceSource = 'finnhub';
         }
       } catch (error) {
-        console.error(`Error fetching price for ${pitch.ticker}, using view price:`, error);
-        // Keep livePrice as pitch.current_price (from view)
+        console.warn(`⚠️ Failed to fetch price for ${pitch.ticker}, using database fallback: $${pitch.current_price}`, error);
+        // Keep livePrice as pitch.current_price (from database view)
       }
     }
     
-    // Final safety check: if somehow still no price, throw error
+    // Final safety check: if somehow still no price, ABORT trading
     if (!livePrice || livePrice <= 0) {
-      const errorMsg = `CRITICAL ERROR: No valid price for ${pitch.ticker} (${pitch.company_name}). View had: ${pitch.current_price}, API returned: ${livePrice}`;
+      const errorMsg = `🚨 CRITICAL: No valid price for ${pitch.ticker} (${pitch.company_name}). Database: ${pitch.current_price}, Source: ${priceSource}`;
       console.error(errorMsg);
       throw new Error(errorMsg);
+    }
+    
+    if (priceSource === 'database') {
+      console.log(`📊 ${pitch.ticker}: $${livePrice} (from ${priceSource})`);
     }
     
     return {

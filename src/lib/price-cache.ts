@@ -19,7 +19,7 @@ export async function fetchPriceWithCache(
   
   // Return cached price if still valid
   if (cached && (now - cached.timestamp) < PRICE_CACHE_TTL) {
-    console.log(`[PriceCache] Hit for ${ticker}: $${cached.price} (age: ${Math.floor((now - cached.timestamp) / 1000)}s)`);
+    console.log(`[PriceCache] ✅ Hit for ${ticker}: $${cached.price} (age: ${Math.floor((now - cached.timestamp) / 1000)}s)`);
     return cached.price;
   }
   
@@ -34,36 +34,43 @@ export async function fetchPriceWithCache(
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
-        }
+        },
+        signal: AbortSignal.timeout(5000) // 5 second timeout
       }
     );
     
     if (!response.ok) {
-      throw new Error(`Finnhub API error: ${response.status}`);
+      const errorMsg = `Finnhub API error: ${response.status} ${response.statusText}`;
+      console.error(`[PriceCache] ❌ ${errorMsg} for ${ticker}`);
+      throw new Error(errorMsg);
     }
     
     const data = await response.json();
+    console.log(`[PriceCache] 📡 Finnhub response for ${ticker}:`, data);
     
     if (data.c && data.c > 0) {
       // Valid price - update cache
       priceCache.set(ticker, { price: data.c, timestamp: now });
-      console.log(`[PriceCache] Fresh fetch for ${ticker}: $${data.c}`);
+      console.log(`[PriceCache] ✅ Fresh fetch for ${ticker}: $${data.c}`);
       return data.c;
     } else {
+      console.warn(`[PriceCache] ⚠️ Invalid Finnhub data for ${ticker}:`, data);
       // Invalid data from Finnhub - use stale cache if available
       if (cached) {
-        console.warn(`[PriceCache] Invalid Finnhub data for ${ticker}, using stale cache: $${cached.price}`);
+        console.warn(`[PriceCache] 🔄 Using stale cache for ${ticker}: $${cached.price} (age: ${Math.floor((now - cached.timestamp) / 1000)}s)`);
         return cached.price;
       }
-      throw new Error(`Invalid Finnhub data for ${ticker} and no cache available`);
+      throw new Error(`Invalid Finnhub data for ${ticker} (c=${data.c}) and no cache available`);
     }
   } catch (error) {
-    console.error(`[PriceCache] Error fetching ${ticker}:`, error);
-    // Use stale cache if available
+    console.error(`[PriceCache] ❌ Error fetching ${ticker}:`, error);
+    // Use stale cache if available (even if very old)
     if (cached) {
-      console.warn(`[PriceCache] Using stale cache for ${ticker} due to error: $${cached.price}`);
+      const ageMinutes = Math.floor((now - cached.timestamp) / 60000);
+      console.warn(`[PriceCache] 🔄 Using STALE cache for ${ticker}: $${cached.price} (age: ${ageMinutes} min)`);
       return cached.price;
     }
-    throw error; // Throw error so caller can check database
+    // No cache at all - throw error so caller uses database fallback
+    throw error;
   }
 }

@@ -3,12 +3,9 @@
     {
       "path": "/api/sync-prices",
       "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/admin/ai-trading/cron",
-      "schedule": "30 14,20 * * *"
     }
   ],
   "buildCommand": "next build",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "_comment": "AI trading cron DISABLED Dec 10 - balance validation broken, allowing unlimited spending. DO NOT re-enable until fixes tested 10+ times."
 }
