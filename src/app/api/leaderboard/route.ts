@@ -156,27 +156,35 @@ export async function GET(request: NextRequest) {
     const pitchPrices: Record<number, number> = {};
     const apiKey = process.env.STOCK_API_KEY;
     
+    // First, get database prices as fallback
+    const { data: dbPrices } = await supabase
+      .from('pitch_market_data')
+      .select('pitch_id, current_price')
+      .in('pitch_id', pitchIds);
+    
+    // Initialize with database prices
+    dbPrices?.forEach(p => {
+      pitchPrices[p.pitch_id] = p.current_price || 100;
+    });
+    
+    // Then try to get live prices if API key available
     if (apiKey) {
       await Promise.all(
         pitchIds.map(async (pitchId) => {
           const ticker = tickerMap[pitchId];
           if (ticker) {
             try {
-              pitchPrices[pitchId] = await fetchPriceWithCache(ticker, pitchId, apiKey);
+              const livePrice = await fetchPriceWithCache(ticker, pitchId, apiKey);
+              if (livePrice && livePrice > 0) {
+                pitchPrices[pitchId] = livePrice; // Override database price with live price
+              }
             } catch (error) {
-              console.error(`[Leaderboard] Error fetching price for ${ticker}:`, error);
-              pitchPrices[pitchId] = 100;
+              console.log(`[Leaderboard] Using database price for ${ticker}: $${pitchPrices[pitchId]}`);
+              // Keep database price
             }
-          } else {
-            pitchPrices[pitchId] = 100;
           }
         })
       );
-    } else {
-      // No API key - use fallback
-      pitchIds.forEach(pitchId => {
-        pitchPrices[pitchId] = 100;
-      });
     }
 
     // Calculate portfolio value for each investor
