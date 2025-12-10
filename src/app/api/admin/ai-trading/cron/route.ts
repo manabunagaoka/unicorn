@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`[AI Trading Cron] Run date: ${runDate}, slot: ${runSlot} (EST hour: ${hour})`);
 
-    // Check idempotency - has this run already completed?
+    // TODO: Idempotency check temporarily disabled until database functions are created
+    // Uncomment after running ADD_IDEMPOTENCY_DEC10.sql
+    /*
     const { data: runIdData, error: idempotencyError } = await supabase
       .rpc('start_cron_run', {
         p_run_date: runDate,
@@ -67,6 +69,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[AI Trading Cron] ✅ Starting new run (ID: ${runId})...`);
+    */
+    const runId = null; // Temporary placeholder
 
     // Call the trigger endpoint internally
     const baseUrl = process.env.VERCEL_URL 
@@ -86,12 +90,14 @@ export async function GET(request: NextRequest) {
       const text = await response.text();
       console.error('[AI Trading Cron] Trigger failed:', response.status, text);
       
-      // Mark run as failed
+      // TODO: Mark run as failed (disabled until database functions created)
+      /*
       await supabase.rpc('complete_cron_run', {
         p_run_id: runId,
         p_trades_executed: 0,
         p_error_message: `Trigger endpoint failed: ${response.status} - ${text.substring(0, 200)}`
       });
+      */
       
       throw new Error(`Trigger endpoint failed: ${response.status} - ${text.substring(0, 200)}`);
     }
@@ -99,15 +105,16 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     const tradesExecuted = data.results?.length || 0;
 
-    // Mark run as completed
+    // TODO: Mark run as completed (disabled until database functions created)
+    /*
     await supabase.rpc('complete_cron_run', {
       p_run_id: runId,
       p_trades_executed: tradesExecuted,
       p_error_message: null
     });
+    */
 
     console.log('[AI Trading Cron] ✅ Completed:', {
-      runId,
       success: response.ok,
       results: tradesExecuted
     });
@@ -115,7 +122,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      runId,
       runDate,
       runSlot,
       tradesExecuted,
