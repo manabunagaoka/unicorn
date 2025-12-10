@@ -385,103 +385,42 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
     const totalCost = decision.shares * priceData.current_price;
     const balanceBefore = aiInvestor.available_tokens;
     
-    // CRITICAL: Strict balance validation BEFORE any transaction
-    if (totalCost > balanceBefore) {
-      // Recalculate maximum possible shares
-      const maxShares = Math.floor(balanceBefore / priceData.current_price * 100) / 100;
-      console.error(`[AI Trading] ${aiInvestor.display_name} OVERSPENDING BLOCKED: tried $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}`);
-      return { 
-        success: false, 
-        message: `${aiInvestor.display_name} tried to overspend: wanted ${decision.shares} shares of ${pitch.company_name} @ $${priceData.current_price} = $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Max affordable: ${maxShares} shares`,
-        execution: {
-          balanceBefore,
-          balanceAfter: balanceBefore,
-          portfolioBefore,
-          portfolioAfter: portfolioBefore,
-          price: priceData.current_price,
-          cost: totalCost
-        }
-      };
-    }
-    
-    // Additional safety: ensure we're not spending more than total_tokens
-    if (totalCost > aiInvestor.total_tokens) {
-      console.error(`[AI Trading] ${aiInvestor.display_name} INVALID TRADE: cost exceeds total portfolio`);
-      return {
-        success: false,
-        message: `${aiInvestor.display_name} invalid trade: $${totalCost.toFixed(2)} exceeds total portfolio $${aiInvestor.total_tokens.toFixed(2)}`,
-        execution: {
-          balanceBefore,
-          balanceAfter: balanceBefore,
-          portfolioBefore,
-          portfolioAfter: portfolioBefore,
-          price: priceData.current_price,
-          cost: totalCost
-        }
-      };
-    }
-    
-    const balanceAfter = balanceBefore - totalCost;
-    
-    const { error } = await supabase
-      .from('investment_transactions')
-      .insert({
-        user_id: aiInvestor.user_id,
-        pitch_id: decision.pitch_id,
-        transaction_type: 'BUY',
-        shares: decision.shares,
-        price_per_share: priceData.current_price,
-        total_amount: totalCost,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
-        timestamp: new Date().toISOString()
-      });
-
-    if (error) throw error;
-
-    const { data: existingInvestment } = await supabase
-      .from('user_investments')
-      .select('*')
-      .eq('user_id', aiInvestor.user_id)
-      .eq('pitch_id', decision.pitch_id)
+    // Use atomic database function with row-level locking
+    const { data: result, error: tradeError } = await supabase
+      .rpc('execute_ai_trade', {
+        p_user_id: aiInvestor.user_id,
+        p_pitch_id: decision.pitch_id,
+        p_shares: decision.shares,
+        p_price_per_share: priceData.current_price,
+        p_transaction_type: 'BUY'
+      })
       .single();
 
-    if (existingInvestment) {
-      const newShares = existingInvestment.shares_owned + decision.shares;
-      const newInvested = existingInvestment.total_invested + totalCost;
-      const newAvgPrice = newInvested / newShares;
-
-      await supabase
-        .from('user_investments')
-        .update({
-          shares_owned: newShares,
-          total_invested: newInvested,
-          avg_purchase_price: newAvgPrice,
-          current_value: newShares * priceData.current_price
-        })
-        .eq('user_id', aiInvestor.user_id)
-        .eq('pitch_id', decision.pitch_id);
-    } else {
-      await supabase
-        .from('user_investments')
-        .insert({
-          user_id: aiInvestor.user_id,
-          pitch_id: decision.pitch_id,
-          shares_owned: decision.shares,
-          total_invested: totalCost,
-          avg_purchase_price: priceData.current_price,
-          current_value: totalCost
-        });
+    if (tradeError) {
+      console.error(`[AI Trading] Database error for ${aiInvestor.display_name}:`, tradeError);
+      throw tradeError;
     }
 
-    await supabase
-      .from('user_token_balances')
-      .update({
-        available_tokens: balanceAfter,
-        total_invested: (aiInvestor.total_invested || 0) + totalCost
-      })
-      .eq('user_id', aiInvestor.user_id);
+    if (!result.success) {
+      // Trade blocked by database validation (insufficient funds)
+      console.warn(`[AI Trading] ${aiInvestor.display_name} trade blocked: ${result.error_message}`);
+      const maxShares = Math.floor(balanceBefore / priceData.current_price * 100) / 100;
+      return {
+        success: false,
+        message: `${aiInvestor.display_name} tried to overspend: wanted ${decision.shares} shares of ${pitch.company_name} @ $${priceData.current_price} = $${totalCost.toFixed(2)} but only has $${balanceBefore.toFixed(2)}. Max affordable: ${maxShares} shares. ${result.error_message}`,
+        execution: {
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          portfolioBefore,
+          portfolioAfter: portfolioBefore,
+          price: priceData.current_price,
+          cost: totalCost
+        }
+      };
+    }
 
+    // Trade succeeded - return success
+    const balanceAfter = result.new_balance;
     return {
       success: true,
       message: `${aiInvestor.display_name} bought ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalCost.toFixed(2)} MTK`,
@@ -511,26 +450,6 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
       };
     }
     
-    const { data: existingInvestment } = await supabase
-      .from('user_investments')
-      .select('*')
-      .eq('user_id', aiInvestor.user_id)
-      .eq('pitch_id', decision.pitch_id)
-      .single();
-
-    if (!existingInvestment || existingInvestment.shares_owned < decision.shares) {
-      return {
-        success: false,
-        message: `Insufficient shares: has ${existingInvestment?.shares_owned || 0}, tried to sell ${decision.shares}`,
-        execution: {
-          balanceBefore: aiInvestor.available_tokens,
-          balanceAfter: aiInvestor.available_tokens,
-          portfolioBefore,
-          portfolioAfter: portfolioBefore
-        }
-      };
-    }
-
     const { data: priceData } = await supabase
       .from('pitch_market_data')
       .select('current_price')
@@ -541,55 +460,40 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
     const totalRevenue = decision.shares * priceData.current_price;
     const balanceBefore = aiInvestor.available_tokens;
-    const balanceAfter = balanceBefore + totalRevenue;
-    
-    const { error } = await supabase
-      .from('investment_transactions')
-      .insert({
-        user_id: aiInvestor.user_id,
-        pitch_id: decision.pitch_id,
-        transaction_type: 'SELL',
-        shares: decision.shares,
-        price_per_share: priceData.current_price,
-        total_amount: totalRevenue,
-        balance_before: balanceBefore,
-        balance_after: balanceAfter,
-        timestamp: new Date().toISOString()
-      });
 
-    if (error) throw error;
+    // Use atomic database function with row-level locking
+    const { data: result, error: tradeError } = await supabase
+      .rpc('execute_ai_trade', {
+        p_user_id: aiInvestor.user_id,
+        p_pitch_id: decision.pitch_id,
+        p_shares: decision.shares,
+        p_price_per_share: priceData.current_price,
+        p_transaction_type: 'SELL'
+      })
+      .single();
 
-    const newShares = existingInvestment.shares_owned - decision.shares;
-    const soldPortion = decision.shares / existingInvestment.shares_owned;
-    const newInvested = existingInvestment.total_invested * (1 - soldPortion);
-
-    if (newShares > 0) {
-      await supabase
-        .from('user_investments')
-        .update({
-          shares_owned: newShares,
-          total_invested: newInvested,
-          current_value: newShares * priceData.current_price
-        })
-        .eq('user_id', aiInvestor.user_id)
-        .eq('pitch_id', decision.pitch_id);
-    } else {
-      await supabase
-        .from('user_investments')
-        .delete()
-        .eq('user_id', aiInvestor.user_id)
-        .eq('pitch_id', decision.pitch_id);
+    if (tradeError) {
+      console.error(`[AI Trading] Database error for ${aiInvestor.display_name} SELL:`, tradeError);
+      throw tradeError;
     }
 
-    const soldAmount = decision.shares * existingInvestment.avg_purchase_price;
-    await supabase
-      .from('user_token_balances')
-      .update({
-        available_tokens: balanceAfter,
-        total_invested: (aiInvestor.total_invested || 0) - soldAmount
-      })
-      .eq('user_id', aiInvestor.user_id);
+    if (!result.success) {
+      // Trade blocked by database validation (insufficient shares)
+      console.warn(`[AI Trading] ${aiInvestor.display_name} SELL blocked: ${result.error_message}`);
+      return {
+        success: false,
+        message: `${aiInvestor.display_name} ${result.error_message}`,
+        execution: {
+          balanceBefore,
+          balanceAfter: balanceBefore,
+          portfolioBefore,
+          portfolioAfter: portfolioBefore
+        }
+      };
+    }
 
+    // Trade succeeded
+    const balanceAfter = result.new_balance;
     return {
       success: true,
       message: `${aiInvestor.display_name} sold ${decision.shares.toFixed(2)} shares of ${pitch.company_name} (${pitch.ticker}) for $${totalRevenue.toFixed(2)} MTK`,

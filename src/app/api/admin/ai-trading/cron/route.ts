@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
     }
 
-    console.log('[AI Trading Cron] Starting automated trading run...');
+    // Initialize Supabase for idempotency check
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    // Determine run date and slot (EST timezone)
+    const now = new Date();
+    const estOffset = -5 * 60; // EST is UTC-5
+    const estTime = new Date(now.getTime() + estOffset * 60 * 1000);
+    const runDate = estTime.toISOString().split('T')[0];
+    const hour = estTime.getUTCHours();
+    const runSlot = (hour >= 14 && hour < 17) ? 'MORNING' : 'AFTERNOON';
+
+    console.log(`[AI Trading Cron] Run date: ${runDate}, slot: ${runSlot} (EST hour: ${hour})`);
+
+    // Check idempotency - has this run already completed?
+    const { data: runId, error: idempotencyError } = await supabase
+      .rpc('start_cron_run', {
+        p_run_date: runDate,
+        p_run_slot: runSlot
+      })
+      .single();
+
+    if (idempotencyError) {
+      console.error('[AI Trading Cron] Idempotency check failed:', idempotencyError);
+      return NextResponse.json({ 
+        error: 'Idempotency check failed', 
+        details: idempotencyError.message 
+      }, { status: 500 });
+    }
+
+    if (!runId) {
+      console.log(`[AI Trading Cron] ⏭️  Already ran for ${runDate} ${runSlot} - skipping`);
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        message: `Already completed for ${runDate} ${runSlot}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    console.log(`[AI Trading Cron] ✅ Starting new run (ID: ${runId})...`);
 
     // Call the trigger endpoint internally
     const baseUrl = process.env.VERCEL_URL 
@@ -41,20 +84,40 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const text = await response.text();
       console.error('[AI Trading Cron] Trigger failed:', response.status, text);
+      
+      // Mark run as failed
+      await supabase.rpc('complete_cron_run', {
+        p_run_id: runId,
+        p_trades_executed: 0,
+        p_error_message: `Trigger endpoint failed: ${response.status} - ${text.substring(0, 200)}`
+      });
+      
       throw new Error(`Trigger endpoint failed: ${response.status} - ${text.substring(0, 200)}`);
     }
 
     const data = await response.json();
+    const tradesExecuted = data.results?.length || 0;
 
-    console.log('[AI Trading Cron] Completed:', {
+    // Mark run as completed
+    await supabase.rpc('complete_cron_run', {
+      p_run_id: runId,
+      p_trades_executed: tradesExecuted,
+      p_error_message: null
+    });
+
+    console.log('[AI Trading Cron] ✅ Completed:', {
+      runId,
       success: response.ok,
-      results: data.results?.length || 0
+      results: tradesExecuted
     });
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      tradesExecuted: data.results?.length || 0,
+      runId,
+      runDate,
+      runSlot,
+      tradesExecuted,
       results: data.results
     });
   } catch (error) {
