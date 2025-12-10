@@ -40,12 +40,11 @@ export async function GET(request: NextRequest) {
     console.log(`[AI Trading Cron] Run date: ${runDate}, slot: ${runSlot} (EST hour: ${hour})`);
 
     // Check idempotency - has this run already completed?
-    const { data: runId, error: idempotencyError } = await supabase
+    const { data: runIdData, error: idempotencyError } = await supabase
       .rpc('start_cron_run', {
         p_run_date: runDate,
         p_run_slot: runSlot
-      })
-      .single();
+      });
 
     if (idempotencyError) {
       console.error('[AI Trading Cron] Idempotency check failed:', idempotencyError);
@@ -55,7 +54,9 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    if (!runId) {
+    const runId = runIdData as number | null;
+
+    if (!runId || runId === null) {
       console.log(`[AI Trading Cron] ⏭️  Already ran for ${runDate} ${runSlot} - skipping`);
       return NextResponse.json({
         success: true,
