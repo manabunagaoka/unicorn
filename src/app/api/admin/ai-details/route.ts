@@ -75,15 +75,24 @@ export async function GET(request: NextRequest) {
       // Format investments with live prices
       const formattedInvestments = await Promise.all((investments || []).map(async (inv) => {
         const ticker = tickerMap[inv.pitch_id];
-        let currentPrice = 100; // Default fallback if API fails
+        
+        // Get database price first as fallback
+        const { data: dbPrice } = await supabase
+          .from('pitch_market_data')
+          .select('current_price')
+          .eq('pitch_id', inv.pitch_id)
+          .single();
+        
+        let currentPrice = dbPrice?.current_price || 100;
         
         if (ticker && process.env.STOCK_API_KEY) {
           try {
-            currentPrice = await fetchPriceWithCache(ticker, inv.pitch_id, process.env.STOCK_API_KEY);
+            const livePrice = await fetchPriceWithCache(ticker, inv.pitch_id, process.env.STOCK_API_KEY);
+            if (livePrice && livePrice > 0) {
+              currentPrice = livePrice;
+            }
           } catch (error) {
-            console.error(`[AIDetails] Error fetching price for ${ticker}, using fallback:`, error);
-            // Use fallback price - same as all other endpoints
-            currentPrice = 100;
+            console.log(`[AIDetails] Using database price $${currentPrice} for ${ticker}`);
           }
         }
 
