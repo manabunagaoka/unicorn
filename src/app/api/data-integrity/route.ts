@@ -141,10 +141,10 @@ export async function GET(request: NextRequest) {
           return {
             pitchId: inv.pitch_id,
             ticker: ticker || `PITCH-${inv.pitch_id}`,
-            shares: inv.shares_owned,
-            avgPrice: inv.avg_purchase_price,
-            currentValue: currentValue,
-            currentPrice: currentPrice
+            shares: parseFloat(inv.shares_owned.toFixed(2)),
+            avgPrice: parseFloat(inv.avg_purchase_price.toFixed(2)),
+            currentValue: parseFloat(currentValue.toFixed(2)),
+            currentPrice: parseFloat(currentPrice.toFixed(2))
           };
         })
       );

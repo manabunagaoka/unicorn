@@ -19,11 +19,15 @@ export async function GET(request: NextRequest) {
   );
 
   try {
-    // Get Cloud Surfer's balance
+    // Get userId from query params (default to ai_cloud for backwards compatibility)
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId') || 'ai_cloud';
+
+    // Get user's balance
     const { data: balance, error: balanceError } = await supabase
       .from('user_token_balances')
       .select('*')
-      .eq('user_id', 'ai_cloud')
+      .eq('user_id', userId)
       .single();
 
     if (balanceError) throw balanceError;
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
     const { data: allInvestments, error: invError } = await supabase
       .from('user_investments')
       .select('*')
-      .eq('user_id', 'ai_cloud')
+      .eq('user_id', userId)
       .gt('shares_owned', 0)
       .order('pitch_id, updated_at', { ascending: false });
 

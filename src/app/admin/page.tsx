@@ -471,24 +471,37 @@ export default function UnicornAdmin() {
     try {
       // Fetch all APIs with comparison
       const cacheBuster = Date.now();
-      const [integrityRes, aiRes, dbTruthRes, leaderboardRes] = await Promise.all([
+      const [integrityRes, aiRes, leaderboardRes] = await Promise.all([
         fetch(`/api/data-integrity?t=${cacheBuster}`),
         fetch(`/api/admin/ai-investors?t=${cacheBuster}`),
-        fetch(`/api/db-truth?t=${cacheBuster}`),
         fetch(`/api/leaderboard?t=${cacheBuster}`)
       ]);
       
       if (integrityRes.ok && aiRes.ok) {
         const integrityData = await integrityRes.json();
         const aiData = await aiRes.json();
-        const dbTruthData = dbTruthRes.ok ? await dbTruthRes.json() : null;
         const leaderboardData = leaderboardRes.ok ? await leaderboardRes.json() : null;
         
+        // Fetch db-truth for each user
+        const dbTruthResults = await Promise.all(
+          integrityData.users.map(async (intUser: any) => {
+            try {
+              const res = await fetch(`/api/db-truth?userId=${intUser.userId}&t=${cacheBuster}`);
+              if (res.ok) {
+                return await res.json();
+              }
+            } catch (err) {
+              console.error(`Failed to fetch db-truth for ${intUser.userId}:`, err);
+            }
+            return null;
+          })
+        );
+        
         // Build comparison for each user
-        const usersWithComparison = integrityData.users.map((intUser: any) => {
+        const usersWithComparison = integrityData.users.map((intUser: any, index: number) => {
           const aiInv = aiData.aiInvestors?.find((ai: any) => ai.userId === intUser.userId);
           const lbUser = leaderboardData?.leaderboard?.find((u: any) => u.userId === intUser.userId);
-          const dbUser = intUser.userId === dbTruthData?.user_id ? dbTruthData : null;
+          const dbUser = dbTruthResults[index];
           
           const values = {
             aiInvestors: aiInv?.totalValue || 0,
