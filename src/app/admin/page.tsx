@@ -510,7 +510,14 @@ export default function UnicornAdmin() {
             database: dbUser?.database_raw.total_value || 0
           };
           
-          const allMatch = values.aiInvestors === values.integrity && values.integrity === values.leaderboard;
+          // Allow small differences due to price timing (< $1 is OK)
+          const closeEnough = (a: number, b: number) => Math.abs(a - b) < 1;
+          
+          // For AI investors: all 3 live APIs should match
+          // For human investors: skip aiInvestors comparison (it's not in that API)
+          const allMatch = intUser.isAI 
+            ? (closeEnough(values.aiInvestors, values.integrity) && closeEnough(values.integrity, values.leaderboard))
+            : closeEnough(values.integrity, values.leaderboard);
           
           return { ...intUser, apiComparison: { values, allMatch, aiInv, lbUser, dbUser } };
         });
@@ -837,13 +844,16 @@ export default function UnicornAdmin() {
                         <span className="bg-red-500 text-white px-2 py-0.5 rounded text-xs">MISMATCH</span>
                       )}
                     </h3>
-                    <div className="grid grid-cols-4 gap-4 text-sm">
-                      <div className="bg-gray-900/50 rounded p-3">
-                        <div className="text-gray-400 text-xs mb-1">AI Investors API</div>
-                        <div className={`font-mono font-bold ${(user as any).apiComparison.allMatch ? 'text-green-400' : 'text-red-400'}`}>
-                          ${(user as any).apiComparison.values.aiInvestors.toLocaleString()}
+                    <div className={`grid ${user.isAI ? 'grid-cols-4' : 'grid-cols-3'} gap-4 text-sm`}>
+                      {/* Only show AI Investors API for AI investors */}
+                      {user.isAI && (
+                        <div className="bg-gray-900/50 rounded p-3">
+                          <div className="text-gray-400 text-xs mb-1">AI Investors API</div>
+                          <div className={`font-mono font-bold ${(user as any).apiComparison.allMatch ? 'text-green-400' : 'text-red-400'}`}>
+                            ${(user as any).apiComparison.values.aiInvestors.toLocaleString()}
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div className="bg-gray-900/50 rounded p-3">
                         <div className="text-gray-400 text-xs mb-1">Data Integrity API</div>
                         <div className={`font-mono font-bold ${(user as any).apiComparison.allMatch ? 'text-green-400' : 'text-red-400'}`}>
@@ -866,11 +876,14 @@ export default function UnicornAdmin() {
                     {!(user as any).apiComparison.allMatch && (
                       <div className="mt-2 text-xs text-red-400">
                         ⚠️ Values don&apos;t match! Max difference: $
-                        {Math.max(
-                          Math.abs((user as any).apiComparison.values.aiInvestors - (user as any).apiComparison.values.integrity),
-                          Math.abs((user as any).apiComparison.values.aiInvestors - (user as any).apiComparison.values.leaderboard),
-                          Math.abs((user as any).apiComparison.values.integrity - (user as any).apiComparison.values.leaderboard)
-                        ).toLocaleString()}
+                        {user.isAI 
+                          ? Math.max(
+                              Math.abs((user as any).apiComparison.values.aiInvestors - (user as any).apiComparison.values.integrity),
+                              Math.abs((user as any).apiComparison.values.aiInvestors - (user as any).apiComparison.values.leaderboard),
+                              Math.abs((user as any).apiComparison.values.integrity - (user as any).apiComparison.values.leaderboard)
+                            ).toLocaleString()
+                          : Math.abs((user as any).apiComparison.values.integrity - (user as any).apiComparison.values.leaderboard).toLocaleString()
+                        }
                       </div>
                     )}
                   </div>
