@@ -124,8 +124,8 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // Always calculate from live/fallback price, NEVER use stale database current_value
-          const currentValue = Math.floor(inv.shares_owned * currentPrice); // Floor each investment
+          // Calculate exact value with decimals
+          const currentValue = inv.shares_owned * currentPrice;
           
           // Debug logging for Cloud Surfer
           if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.display_name?.includes('Surfer') || balance.display_name?.includes('Cloud')) {
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate discrepancies (floor both sides since UI floors everything)
-      const cashDiff = uiCash - Math.floor(dbCash); // Should be 0
+      const cashDiff = uiCash - dbCash; // Should be 0
       const holdingsCountDiff = uiHoldingsCount - dbHoldingsCount; // Should be 0
 
       const hasIssues = cashDiff !== 0 || holdingsCountDiff !== 0;
@@ -200,11 +200,11 @@ export async function GET(request: NextRequest) {
           timestamp: queryTime
         },
         db: {
-          cash: Math.floor(dbCash),
-          portfolioValue: holdingsValue,
-          totalValue: Math.floor(dbCash) + holdingsValue,
+          cash: parseFloat(dbCash.toFixed(2)),
+          portfolioValue: parseFloat(holdingsValue.toFixed(2)),
+          totalValue: parseFloat((dbCash + holdingsValue).toFixed(2)),
           holdingsCount: dbHoldingsCount,
-          totalInvested: dbTotalInvested,
+          totalInvested: parseFloat((dbTotalInvested || 0).toFixed(2)),
           updatedAt: balance.updated_at
         },
         discrepancies: {

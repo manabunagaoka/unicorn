@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // Always calculate from live/fallback price, NEVER use stale database current_value
-          const currentValue = Math.floor(inv.shares_owned * currentPrice); // Floor each investment
+          // Calculate exact values without flooring - preserve decimals
+          const currentValue = inv.shares_owned * currentPrice;
           const gain = currentValue - inv.total_invested;
           const gainPercent = inv.total_invested > 0 ? ((gain / inv.total_invested) * 100) : 0;
 
@@ -113,36 +113,35 @@ export async function GET(request: NextRequest) {
               ticker,
               shares: inv.shares_owned,
               price: currentPrice,
-              raw_value: inv.shares_owned * currentPrice,
-              floored_value: currentValue,
+              current_value: currentValue,
               total_invested: inv.total_invested
             });
           }
 
           return {
             pitchId: inv.pitch_id,
-            shares: inv.shares_owned,
-            avgPrice: inv.avg_purchase_price,
-            totalInvested: inv.total_invested,
-            currentValue: currentValue,
-            gain: gain,
-            gainPercent: gainPercent.toFixed(2),
+            shares: parseFloat(inv.shares_owned.toFixed(2)),
+            avgPrice: parseFloat(inv.avg_purchase_price.toFixed(2)),
+            totalInvested: parseFloat(inv.total_invested.toFixed(2)),
+            currentValue: parseFloat(currentValue.toFixed(2)),
+            gain: parseFloat(gain.toFixed(2)),
+            gainPercent: parseFloat(gainPercent.toFixed(2)),
             updatedAt: inv.updated_at
           };
         })
       );
 
-      // Calculate portfolio value with live prices
+      // Calculate portfolio value with live prices - preserve decimals
       const holdingsValue = investmentsWithLivePrices.reduce((sum, inv) => sum + inv.currentValue, 0);
-      const portfolioValue = Math.floor(ai.available_tokens || 0) + holdingsValue; // Total portfolio (cash + holdings)
-      const totalValue = portfolioValue; // Same as portfolioValue for consistency
-      const totalGains = investmentsWithLivePrices.reduce((sum, inv) => sum + inv.gain, 0); // Sum of individual investment gains
+      const portfolioValue = (ai.available_tokens || 0) + holdingsValue;
+      const totalValue = portfolioValue;
+      const totalGains = investmentsWithLivePrices.reduce((sum, inv) => sum + inv.gain, 0);
       const roi = ai.total_invested > 0 ? ((totalGains / ai.total_invested) * 100) : 0;
 
       // Debug logging for Cloud Surfer
       if (ai.display_name?.includes('Surfer') || ai.display_name?.includes('Cloud')) {
         console.log(`[AIInvestors] ${ai.display_name} TOTALS:`, {
-          cash: Math.floor(ai.available_tokens || 0),
+          cash: ai.available_tokens || 0,
           holdings_value: holdingsValue,
           portfolio_value: portfolioValue,
           total_value: totalValue,
@@ -168,24 +167,24 @@ export async function GET(request: NextRequest) {
         strategy: ai.ai_strategy,
         catchphrase: ai.ai_catchphrase,
         status: ai.ai_status || 'ACTIVE',
-        isActive: ai.is_active !== false, // Default true if not set
-        cash: Math.floor(ai.available_tokens || 0),
-        portfolioValue: portfolioValue,
-        totalValue: totalValue,
-        totalInvested: ai.total_invested || 0,
-        totalGains: totalGains,
-        roi: roi.toFixed(2),
+        isActive: ai.is_active !== false,
+        cash: parseFloat((ai.available_tokens || 0).toFixed(2)),
+        portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+        totalValue: parseFloat(totalValue.toFixed(2)),
+        totalInvested: parseFloat((ai.total_invested || 0).toFixed(2)),
+        totalGains: parseFloat(totalGains.toFixed(2)),
+        roi: parseFloat(roi.toFixed(2)),
         tier: ai.investor_tier || 'BRONZE',
         totalTrades: totalTrades,
-        winRate: winRate.toFixed(1),
+        winRate: parseFloat(winRate.toFixed(1)),
         lastTradeTime: aiTransactions[0]?.timestamp || null,
         investments: investmentsWithLivePrices,
         recentTransactions: aiTransactions.slice(0, 10).map(tx => ({
           type: tx.transaction_type,
           pitchId: tx.pitch_id,
-          shares: tx.shares,
-          pricePerShare: tx.price_per_share,
-          totalAmount: tx.total_amount,
+          shares: parseFloat((tx.shares || 0).toFixed(2)),
+          pricePerShare: parseFloat((tx.price_per_share || 0).toFixed(2)),
+          totalAmount: parseFloat((tx.total_amount || 0).toFixed(2)),
           timestamp: tx.timestamp
         })),
         tradingLogs: aiLogs.slice(0, 5).map(log => ({

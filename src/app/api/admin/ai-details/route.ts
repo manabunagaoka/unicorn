@@ -96,21 +96,21 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Always calculate from live/fallback price, NEVER use stale database current_value
-        const currentValue = Math.floor(inv.shares_owned * currentPrice); // Floor each investment
+        // Calculate exact value with decimals
+        const currentValue = inv.shares_owned * currentPrice;
         const gain = ((currentValue - inv.total_invested) / inv.total_invested * 100) || 0;
 
         return {
           pitchId: inv.pitch_id,
-          shares: inv.shares_owned,
-          avgPrice: inv.avg_purchase_price,
-          totalInvested: inv.total_invested,
-          currentValue: currentValue,
-          gain: gain
+          shares: parseFloat(inv.shares_owned.toFixed(2)),
+          avgPrice: parseFloat(inv.avg_purchase_price.toFixed(2)),
+          totalInvested: parseFloat(inv.total_invested.toFixed(2)),
+          currentValue: parseFloat(currentValue.toFixed(2)),
+          gain: parseFloat(gain.toFixed(2))
         };
       }));
 
-      // Calculate portfolio value with live prices
+      // Calculate portfolio value with live prices - preserve decimals
       const portfolioValue = formattedInvestments.reduce((sum, inv) => sum + inv.currentValue, 0);
       const totalValue = (ai.available_tokens || 0) + portfolioValue;
       const totalGains = portfolioValue - (ai.total_invested || 0);
@@ -124,14 +124,14 @@ export async function GET(request: NextRequest) {
         emoji: ai.ai_emoji,
         strategy: ai.ai_strategy,
         catchphrase: ai.ai_catchphrase,
-        persona: ai.ai_personality_prompt || null, // Custom persona
+        persona: ai.ai_personality_prompt || null,
         status: ai.ai_status || 'ACTIVE',
-        cash: ai.available_tokens || 0,
-        portfolioValue: portfolioValue,
-        totalValue: totalValue,
-        totalInvested: ai.total_invested || 0,
-        totalGains: totalGains,
-        roi: roi,
+        cash: parseFloat((ai.available_tokens || 0).toFixed(2)),
+        portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+        totalValue: parseFloat(totalValue.toFixed(2)),
+        totalInvested: parseFloat((ai.total_invested || 0).toFixed(2)),
+        totalGains: parseFloat(totalGains.toFixed(2)),
+        roi: parseFloat(roi.toFixed(2)),
       };
 
       // Format transactions
