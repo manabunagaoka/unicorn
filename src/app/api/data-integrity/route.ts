@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
 
       // Calculate what UI shows (using live prices)
       const holdingsValue = investmentsWithLivePrices.reduce((sum, inv) => {
-        return sum + inv.currentValue; // Already floored above
+        return sum + inv.currentValue;
       }, 0);
 
       // DB raw data
@@ -159,12 +159,12 @@ export async function GET(request: NextRequest) {
       const dbTotalInvested = balance.total_invested || 0;
       const dbHoldingsCount = userInvestments.length;
 
-      // UI data (what APIs return with live prices)
-      const uiCash = dbCash; // Keep exact cents
-      const uiHoldingsValue = holdingsValue; // Already floored above
-      const uiTotal = uiCash + uiHoldingsValue;
+      // UI data (what APIs return with live prices) - format to 2 decimals
+      const uiCash = parseFloat(dbCash.toFixed(2));
+      const uiHoldingsValue = parseFloat(holdingsValue.toFixed(2));
+      const uiTotal = parseFloat((uiCash + uiHoldingsValue).toFixed(2));
       const uiHoldingsCount = dbHoldingsCount; // Should match
-      const uiRoi = dbTotalInvested > 0 ? ((uiHoldingsValue - dbTotalInvested) / dbTotalInvested * 100) : 0;
+      const uiRoi = dbTotalInvested > 0 ? parseFloat(((uiHoldingsValue - dbTotalInvested) / dbTotalInvested * 100).toFixed(2)) : 0;
 
       // Debug logging for Cloud Surfer
       if (balance.username?.includes('Surfer') || balance.username?.includes('Cloud') || balance.display_name?.includes('Surfer') || balance.display_name?.includes('Cloud')) {
@@ -178,11 +178,11 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Calculate discrepancies (floor both sides since UI floors everything)
-      const cashDiff = uiCash - dbCash; // Should be 0
-      const holdingsCountDiff = uiHoldingsCount - dbHoldingsCount; // Should be 0
+      // Calculate discrepancies - allow for tiny rounding differences (< $0.01)
+      const cashDiff = Math.abs(uiCash - dbCash);
+      const holdingsCountDiff = uiHoldingsCount - dbHoldingsCount;
 
-      const hasIssues = cashDiff !== 0 || holdingsCountDiff !== 0;
+      const hasIssues = cashDiff > 0.01 || holdingsCountDiff !== 0;
 
       return {
         userId: balance.user_id,
@@ -208,9 +208,9 @@ export async function GET(request: NextRequest) {
           updatedAt: balance.updated_at
         },
         discrepancies: {
-          cash: cashDiff !== 0,
-          portfolioValue: false, // Same calculation
-          totalValue: cashDiff !== 0, // Will differ if cash differs
+          cash: cashDiff > 0.01,
+          portfolioValue: false, // Expected to differ - DB uses stored prices, UI uses live prices
+          totalValue: cashDiff > 0.01, // Will differ if cash differs
           holdingsCount: holdingsCountDiff !== 0
         },
         hasDiscrepancy: hasIssues
