@@ -247,14 +247,14 @@ export async function GET(request: NextRequest) {
         aiStatus: investor.ai_status || 'ACTIVE',
         investorTier: investor.investor_tier || undefined,
         founderTier: investor.founder_tier || undefined,
-        cash: investor.available_tokens || 0,
-        holdingsValue,
-        portfolioValue,
+        cash: parseFloat((investor.available_tokens || 0).toFixed(2)),
+        holdingsValue: parseFloat(holdingsValue.toFixed(2)),
+        portfolioValue: parseFloat(portfolioValue.toFixed(2)),
         holdings: userInvestments.map(inv => ({
-          ticker: tickerMap[inv.pitch_id] || `PITCH-${inv.pitch_id}`, // Show real stock ticker
-          shares: inv.shares_owned,
-          currentPrice: pitchPrices[inv.pitch_id] || 0,
-          value: Math.floor((inv.shares_owned || 0) * (pitchPrices[inv.pitch_id] || 100))
+          ticker: tickerMap[inv.pitch_id] || `PITCH-${inv.pitch_id}`,
+          shares: parseFloat((inv.shares_owned || 0).toFixed(2)),
+          currentPrice: parseFloat((pitchPrices[inv.pitch_id] || 0).toFixed(2)),
+          value: parseFloat(((inv.shares_owned || 0) * (pitchPrices[inv.pitch_id] || 100)).toFixed(2))
         }))
       };
     }) || [];
