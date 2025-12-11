@@ -3,6 +3,14 @@
     {
       "path": "/api/sync-prices",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/admin/ai-trading/cron",
+      "schedule": "30 14 * * 1-5"
+    },
+    {
+      "path": "/api/admin/ai-trading/cron",
+      "schedule": "30 20 * * 1-5"
     }
   ],
   "buildCommand": "next build",
