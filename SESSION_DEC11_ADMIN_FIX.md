@@ -65,14 +65,15 @@ Updated `vercel.json` to run AI trading twice daily on weekdays:
    ORDER BY display_name;
    ```
 
-4. **Check no overspending (total should be ~$11M):**
+4. **Check no overspending (AI total should be ~$10M):**
    ```sql
+   -- AI investors only (10 × $1M = $10M)
    SELECT 
      SUM(available_tokens) + 
      (SELECT COALESCE(SUM(current_value), 0) FROM user_investments 
       WHERE user_id IN (SELECT user_id FROM user_token_balances WHERE is_ai_investor = true)) 
-     as platform_total,
-     11000000 as expected
+     as ai_total,
+     10000000 as expected_ai_total
    FROM user_token_balances WHERE is_ai_investor = true;
    ```
 
