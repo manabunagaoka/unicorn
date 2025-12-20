@@ -184,19 +184,62 @@ function getStrategyGuidelines(strategy: string): string {
   return guidelines[strategy] || 'Follow your instincts.';
 }
 
+// Get SELL triggers based on strategy
+function getSellTriggers(strategy: string): string {
+  const triggers: Record<string, string> = {
+    'CONSERVATIVE': 'SELL positions that have gained 15%+ to lock in profits. SELL losers down 10%+ to cut losses. Protect capital!',
+    'DIVERSIFIED': 'SELL to rebalance - no single position should exceed 25% of portfolio. SELL positions up 20%+ or down 15%+.',
+    'ALL_IN': 'SELL everything in current position to go ALL-IN on a better opportunity. One position at a time!',
+    'HOLD_FOREVER': 'NEVER SELL. Diamond hands means HOLDING through ALL volatility. Selling is for paper hands!',
+    'TECH_ONLY': 'SELL any non-Enterprise/B2B positions immediately! SELL tech stocks down 20%+ or up 30%+.',
+    'SAAS_ONLY': 'SELL any non-Enterprise positions immediately! SELL SaaS stocks down 15%+ or if better SaaS opportunity exists.',
+    'MOMENTUM': 'SELL IMMEDIATELY if position drops 3%+ today! SELL winners up 10%+ to catch the next wave. Stay nimble!',
+    'TREND_FOLLOW': 'SELL when momentum reverses - if stock was up and now falling, EXIT! Follow trends, not bags.',
+    'CONTRARIAN': 'SELL when everyone is buying! If a stock rises 10%+ and gets hyped, time to take profits and go against the crowd.',
+    'PERFECT_TIMING': 'SELL at peaks! Position up 8%+? Lock profits. Position down 12%+? Cut losses. Timing is everything.'
+  };
+  return triggers[strategy] || 'Consider selling positions that no longer fit your strategy.';
+}
+
 async function getAITradeDecision(
   aiInvestor: any,
   portfolio: any[],
-  pitches: any[]
+  pitches: any[],
+  actualPortfolioValue: number
 ): Promise<{ decision: AITradeDecision; prompt: string; rawResponse: string }> {
-  const cashPercent = (aiInvestor.available_tokens / aiInvestor.total_tokens) * 100;
+  // Calculate cash percentage based on ACTUAL portfolio value
+  const totalValue = aiInvestor.available_tokens + actualPortfolioValue;
+  const cashPercent = (aiInvestor.available_tokens / totalValue) * 100;
+  const holdingsPercent = (actualPortfolioValue / totalValue) * 100;
   
+  // Calculate gain/loss for each position
   const portfolioSummary = portfolio.length > 0 
     ? portfolio.map(p => {
         const pitch = pitches.find(hp => hp.pitch_id === p.pitch_id);
-        return `${pitch?.company_name}: ${p.shares_owned.toFixed(2)} shares @ $${pitch?.current_price?.toFixed(2)}, invested $${Math.floor(p.total_invested).toLocaleString()} MTK, current value $${Math.floor(p.current_value).toLocaleString()} MTK`;
+        const currentValue = p.shares_owned * (pitch?.current_price || 0);
+        const gainLoss = currentValue - p.total_invested;
+        const gainLossPercent = p.total_invested > 0 ? (gainLoss / p.total_invested) * 100 : 0;
+        const gainLossIndicator = gainLossPercent >= 0 ? `📈 +${gainLossPercent.toFixed(1)}%` : `📉 ${gainLossPercent.toFixed(1)}%`;
+        
+        return `${pitch?.company_name} (${pitch?.ticker}): ${p.shares_owned.toFixed(2)} shares @ $${pitch?.current_price?.toFixed(2)}
+      Cost basis: $${p.total_invested.toFixed(2)} MTK | Current value: $${currentValue.toFixed(2)} MTK | ${gainLossIndicator} ($${gainLoss >= 0 ? '+' : ''}${gainLoss.toFixed(2)})`;
       }).join('\n')
     : 'No current holdings - 100% cash!';
+
+  // Identify positions to potentially sell
+  const sellCandidates = portfolio.map(p => {
+    const pitch = pitches.find(hp => hp.pitch_id === p.pitch_id);
+    const currentValue = p.shares_owned * (pitch?.current_price || 0);
+    const gainLossPercent = p.total_invested > 0 ? ((currentValue - p.total_invested) / p.total_invested) * 100 : 0;
+    return { ...p, pitch, currentValue, gainLossPercent };
+  }).filter(p => p.gainLossPercent > 10 || p.gainLossPercent < -10);
+
+  const sellOpportunities = sellCandidates.length > 0
+    ? `\n🎯 SELL CANDIDATES:\n${sellCandidates.map(p => 
+        `- ${p.pitch?.ticker}: ${p.gainLossPercent >= 0 ? '+' : ''}${p.gainLossPercent.toFixed(1)}% (${p.gainLossPercent >= 10 ? 'TAKE PROFITS?' : 'CUT LOSSES?'})`
+      ).join('\n')}`
+    : '';
+
 
   // Randomize pitch order to prevent bias toward first companies
   const shuffledPitches = [...pitches].sort(() => Math.random() - 0.5);
@@ -214,23 +257,34 @@ async function getAITradeDecision(
   // Use custom personality prompt if available, otherwise use default guidelines
   const personalityGuidelines = aiInvestor.ai_personality_prompt || getStrategyGuidelines(aiInvestor.ai_strategy);
   
+  // Get sell triggers for this strategy
+  const sellGuidelines = getSellTriggers(aiInvestor.ai_strategy);
+  
   // Get valid pitch_id range for prompt
   const validPitchIds = pitches.map(p => p.pitch_id).sort((a, b) => a - b);
   const pitchIdRange = validPitchIds.length > 0 
     ? `${Math.min(...validPitchIds)}-${Math.max(...validPitchIds)}` 
     : '1-14';
   
+  // Calculate overall portfolio performance
+  const totalInvested = portfolio.reduce((sum, p) => sum + p.total_invested, 0);
+  const overallGainLoss = actualPortfolioValue - totalInvested;
+  const overallGainLossPercent = totalInvested > 0 ? (overallGainLoss / totalInvested) * 100 : 0;
+  
   const prompt = `You are "${aiInvestor.display_name}", an AI investor with the ${aiInvestor.ai_strategy} strategy.
 Your catchphrase: "${aiInvestor.ai_catchphrase}"
 
 ⚡ CRITICAL: STAY IN CHARACTER! Be EXTREME and TRUE to your personality!
 
-CURRENT STATUS:
-- Available Cash: $${Math.floor(aiInvestor.available_tokens).toLocaleString()} MTK (${cashPercent.toFixed(1)}% of portfolio)
-- Total Portfolio Value: $${Math.floor(aiInvestor.total_tokens).toLocaleString()} MTK
+📊 CURRENT STATUS:
+- Available Cash: $${Math.floor(aiInvestor.available_tokens).toLocaleString()} MTK (${cashPercent.toFixed(1)}% of total)
+- Holdings Value: $${Math.floor(actualPortfolioValue).toLocaleString()} MTK (${holdingsPercent.toFixed(1)}% of total)
+- TOTAL Portfolio: $${Math.floor(totalValue).toLocaleString()} MTK
+- Overall P&L: ${overallGainLoss >= 0 ? '+' : ''}$${Math.floor(overallGainLoss).toLocaleString()} (${overallGainLossPercent >= 0 ? '+' : ''}${overallGainLossPercent.toFixed(1)}%)
 
-YOUR PORTFOLIO:
+📈 YOUR PORTFOLIO (with gain/loss):
 ${portfolioSummary}
+${sellOpportunities}
 
 INVESTMENT OPPORTUNITIES (HM14 - Harvard Magnificent Companies):
 ${marketData}
@@ -238,11 +292,15 @@ ${marketData}
 🎭 YOUR PERSONALITY & TRADING GUIDELINES:
 ${personalityGuidelines}
 
+🔴 WHEN TO SELL (YOUR STRATEGY):
+${sellGuidelines}
+
 💰 TRADING RULES FOR YOU:
 - Trade sizes: ${strategyLimits.suggestion}
 - Budget for this trade: $${strategyLimits.min.toLocaleString()} - $${strategyLimits.max.toLocaleString()} MTK
 - Make BOLD moves that match your personality!
-- SELL if holdings are declining/overvalued/wrong for your strategy
+- REVIEW your holdings: positions with big gains might be time to TAKE PROFITS
+- REVIEW your holdings: positions with big losses might need to be CUT
 - BUY if you see opportunities that match YOUR strategy
 
 ${aiInvestor.ai_strategy === 'MOMENTUM' && cashPercent > 40 ? `
@@ -625,7 +683,7 @@ async function logTrade(supabase: any, aiInvestor: any, prompt: string, rawRespo
         display_name: aiInvestor.display_name,
         ai_strategy: aiInvestor.ai_strategy,
         cash_before: aiInvestor.available_tokens,
-        portfolio_value_before: aiInvestor.total_tokens,
+        portfolio_value_before: aiInvestor.actualPortfolioValue || (aiInvestor.total_tokens - aiInvestor.available_tokens),
         openai_prompt: prompt,
         openai_response_raw: rawResponse,
         decision_action: decision.action,
@@ -697,7 +755,15 @@ export async function POST(request: NextRequest) {
         
         const portfolio = await getAIPortfolio(supabase, ai.user_id);
         
-        const { decision, prompt, rawResponse } = await getAITradeDecision(ai, portfolio, pitches);
+        // Calculate ACTUAL portfolio value from live prices
+        const actualPortfolioValue = portfolio.reduce((sum, p) => {
+          const pitch = pitches.find(hp => hp.pitch_id === p.pitch_id);
+          return sum + (p.shares_owned * (pitch?.current_price || 0));
+        }, 0);
+        
+        console.log(`[AI Trading] ${ai.display_name} actual holdings value: $${actualPortfolioValue.toFixed(2)}`);
+        
+        const { decision, prompt, rawResponse } = await getAITradeDecision(ai, portfolio, pitches, actualPortfolioValue);
         
         // Check if this was an error from OpenAI (will have "Technical difficulties" in reasoning)
         const isAPIError = decision.reasoning.includes('Technical difficulties') || decision.reasoning.includes('error');
@@ -713,8 +779,8 @@ export async function POST(request: NextRequest) {
             execution: {
               balanceBefore: ai.available_tokens,
               balanceAfter: ai.available_tokens,
-              portfolioBefore: ai.total_tokens - ai.available_tokens,
-              portfolioAfter: ai.total_tokens - ai.available_tokens
+              portfolioBefore: actualPortfolioValue,
+              portfolioAfter: actualPortfolioValue
             }
           };
         } else {
@@ -723,6 +789,8 @@ export async function POST(request: NextRequest) {
         
         console.log(`[AI Trading] ${ai.display_name} result: ${result.success ? 'SUCCESS' : 'FAILED'} - ${result.message}`);
         
+        // Update AI object with actual portfolio value for logging
+        ai.actualPortfolioValue = actualPortfolioValue;
         await logTrade(supabase, ai, prompt, rawResponse, decision, result, triggeredBy);
         
         results.push({
