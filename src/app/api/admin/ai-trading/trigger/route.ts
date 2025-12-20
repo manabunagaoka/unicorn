@@ -756,7 +756,7 @@ export async function POST(request: NextRequest) {
         const portfolio = await getAIPortfolio(supabase, ai.user_id);
         
         // Calculate ACTUAL portfolio value from live prices
-        const actualPortfolioValue = portfolio.reduce((sum, p) => {
+        const actualPortfolioValue = portfolio.reduce((sum: number, p) => {
           const pitch = pitches.find(hp => hp.pitch_id === p.pitch_id);
           return sum + (p.shares_owned * (pitch?.current_price || 0));
         }, 0);
