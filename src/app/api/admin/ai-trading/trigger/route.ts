@@ -7,6 +7,63 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+// US Stock Market Holidays for 2025-2026
+// These are the days when US markets are CLOSED
+function isUSMarketHoliday(date: Date): { isHoliday: boolean; holidayName?: string } {
+  const month = date.getMonth(); // 0-11
+  const day = date.getDate();
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+  const year = date.getFullYear();
+  
+  // Weekends are always closed
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return { isHoliday: true, holidayName: dayOfWeek === 0 ? 'Sunday' : 'Saturday' };
+  }
+  
+  // Fixed holidays for 2025-2026
+  const holidays: { [key: string]: string } = {
+    // 2025
+    '2025-01-01': "New Year's Day",
+    '2025-01-20': 'Martin Luther King Jr. Day',
+    '2025-02-17': "Presidents' Day",
+    '2025-04-18': 'Good Friday',
+    '2025-05-26': 'Memorial Day',
+    '2025-06-19': 'Juneteenth',
+    '2025-07-04': 'Independence Day',
+    '2025-09-01': 'Labor Day',
+    '2025-11-27': 'Thanksgiving Day',
+    '2025-12-25': 'Christmas Day',
+    // 2026
+    '2026-01-01': "New Year's Day",
+    '2026-01-19': 'Martin Luther King Jr. Day',
+    '2026-02-16': "Presidents' Day",
+    '2026-04-03': 'Good Friday',
+    '2026-05-25': 'Memorial Day',
+    '2026-06-19': 'Juneteenth',
+    '2026-07-03': 'Independence Day (observed)',
+    '2026-09-07': 'Labor Day',
+    '2026-11-26': 'Thanksgiving Day',
+    '2026-12-25': 'Christmas Day',
+  };
+  
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  
+  if (holidays[dateStr]) {
+    return { isHoliday: true, holidayName: holidays[dateStr] };
+  }
+  
+  return { isHoliday: false };
+}
+
+// Helper to update all current_values in user_investments
+async function updateAllCurrentValues(supabase: any) {
+  // This runs a raw SQL to update all positions' current_value based on live prices
+  const { error } = await supabase.rpc('update_investment_current_values');
+  if (error) {
+    console.warn('Could not update current_values via RPC:', error.message);
+  }
+}
+
 interface AITradeDecision {
   action: 'BUY' | 'SELL' | 'HOLD';
   pitch_id: number;
@@ -370,6 +427,27 @@ Important:
     const rawResponse = completion.choices[0].message.content || '{}';
     const decision = JSON.parse(rawResponse);
     
+    // Validate and fix the decision
+    if (!decision.action || !['BUY', 'SELL', 'HOLD'].includes(decision.action)) {
+      console.warn(`[AI Trading] Invalid action "${decision.action}", defaulting to HOLD`);
+      decision.action = 'HOLD';
+    }
+    
+    // If BUY or SELL but no shares, this is invalid - convert to HOLD
+    if ((decision.action === 'BUY' || decision.action === 'SELL') && !decision.shares) {
+      console.warn(`[AI Trading] ${decision.action} without shares specified, converting to HOLD`);
+      decision.reasoning = `(Converted from ${decision.action} - no shares specified) ${decision.reasoning || ''}`;
+      decision.action = 'HOLD';
+    }
+    
+    // Ensure shares is a valid number
+    if (decision.shares && (typeof decision.shares !== 'number' || decision.shares <= 0)) {
+      console.warn(`[AI Trading] Invalid shares value "${decision.shares}", converting to HOLD`);
+      decision.reasoning = `(Converted - invalid shares: ${decision.shares}) ${decision.reasoning || ''}`;
+      decision.action = 'HOLD';
+      decision.shares = undefined;
+    }
+    
     return {
       decision: decision as AITradeDecision,
       prompt,
@@ -664,7 +742,7 @@ async function executeTrade(supabase: any, aiInvestor: any, decision: AITradeDec
 
   return { 
     success: false, 
-    message: 'Invalid action',
+    message: `Invalid action: ${decision.action} with shares=${decision.shares}. Action must be BUY/SELL/HOLD and require shares for BUY/SELL.`,
     execution: {
       balanceBefore: aiInvestor.available_tokens,
       balanceAfter: aiInvestor.available_tokens,
@@ -702,6 +780,22 @@ async function logTrade(supabase: any, aiInvestor: any, prompt: string, rawRespo
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if today is a US market holiday
+    const now = new Date();
+    const estOffset = -5 * 60; // EST is UTC-5 (ignoring DST for simplicity)
+    const estTime = new Date(now.getTime() + (now.getTimezoneOffset() + estOffset) * 60000);
+    const { isHoliday, holidayName } = isUSMarketHoliday(estTime);
+    
+    if (isHoliday) {
+      console.log(`[AI Trading] Skipping - US market closed for ${holidayName}`);
+      return NextResponse.json({ 
+        success: false, 
+        skipped: true,
+        reason: `US market closed: ${holidayName}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // Admin auth check (not cron)
     const authHeader = request.headers.get('authorization');
     const body = await request.json();
