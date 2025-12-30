@@ -233,27 +233,27 @@ function getStrategyGuidelines(strategy: string): string {
     'HOLD_FOREVER': 'Diamond Hands: Buy quality and NEVER EVER SELL. Long-term value investing. Ignore ALL short-term volatility. Paper hands lose, diamond hands WIN. 💎🙌',
     'TECH_ONLY': 'Silicon Brain: ONLY companies categorized as "Enterprise" (business software, enterprise tech). NO consumer products, NO social impact. Filter companies by category="Enterprise" ONLY. If no Enterprise companies are attractive, HOLD - never compromise your standards!',
     'SAAS_ONLY': 'Cloud Surfer: ONLY companies categorized as "Enterprise" (cloud software, SaaS with recurring revenue). Filter companies by category="Enterprise" ONLY. Consumer/social impact are NOT enterprise SaaS. If no Enterprise companies fit, HOLD - never violate the B2B rule!',
-    'MOMENTUM': 'FOMO Master: You HATE missing gains! Buy stocks rising 2%+. Stock falling 2%+? Consider SELLING! Sitting on >40% cash is UNACCEPTABLE - you MUST be in the market!',
-    'TREND_FOLLOW': 'Hype Train: Ride trends. Buy stocks with positive momentum. Sell losers quickly. Follow the crowd to profits!',
-    'CONTRARIAN': 'The Contrarian: Buy when others panic-sell (falling stocks). Sell when others FOMO-buy (rising stocks). Go against the herd ALWAYS.',
-    'PERFECT_TIMING': 'The Oracle: Buy low, sell high. Look for oversold opportunities (down 5%+). Exit overbought peaks (up 8%+). Precision timing wins.'
+    'MOMENTUM': 'FOMO Master: You HATE missing gains! Buy stocks rising 1%+. Stock falling 1%+? SELL IT NOW! Sitting on >40% cash is UNACCEPTABLE - you MUST be in the market!',
+    'TREND_FOLLOW': 'Hype Train: Ride trends. Buy stocks with positive momentum. Sell losers down even 1-2% quickly. Follow the crowd to profits!',
+    'CONTRARIAN': 'The Contrarian: Buy when others panic-sell (falling stocks). SELL when others FOMO-buy (rising stocks 2%+). Go against the herd ALWAYS. If position is UP, consider SELLING!',
+    'PERFECT_TIMING': 'The Oracle: Buy low, sell high. Look for oversold opportunities (down 2%+). Exit overbought peaks (up 3%+). Precision timing wins.'
   };
   return guidelines[strategy] || 'Follow your instincts.';
 }
 
-// Get SELL triggers based on strategy
+// Get SELL triggers based on strategy (lowered thresholds for more active trading)
 function getSellTriggers(strategy: string): string {
   const triggers: Record<string, string> = {
-    'CONSERVATIVE': 'SELL positions that have gained 15%+ to lock in profits. SELL losers down 10%+ to cut losses. Protect capital!',
-    'DIVERSIFIED': 'SELL to rebalance - no single position should exceed 25% of portfolio. SELL positions up 20%+ or down 15%+.',
+    'CONSERVATIVE': 'SELL positions that have gained 5%+ to lock in profits. SELL losers down 3%+ to cut losses. Protect capital!',
+    'DIVERSIFIED': 'SELL to rebalance - no single position should exceed 25% of portfolio. SELL positions up 5%+ or down 3%+.',
     'ALL_IN': 'SELL everything in current position to go ALL-IN on a better opportunity. One position at a time!',
     'HOLD_FOREVER': 'NEVER SELL. Diamond hands means HOLDING through ALL volatility. Selling is for paper hands!',
-    'TECH_ONLY': 'SELL any non-Enterprise/B2B positions immediately! SELL tech stocks down 20%+ or up 30%+.',
-    'SAAS_ONLY': 'SELL any non-Enterprise positions immediately! SELL SaaS stocks down 15%+ or if better SaaS opportunity exists.',
-    'MOMENTUM': 'SELL IMMEDIATELY if position drops 3%+ today! SELL winners up 10%+ to catch the next wave. Stay nimble!',
-    'TREND_FOLLOW': 'SELL when momentum reverses - if stock was up and now falling, EXIT! Follow trends, not bags.',
-    'CONTRARIAN': 'SELL when everyone is buying! If a stock rises 10%+ and gets hyped, time to take profits and go against the crowd.',
-    'PERFECT_TIMING': 'SELL at peaks! Position up 8%+? Lock profits. Position down 12%+? Cut losses. Timing is everything.'
+    'TECH_ONLY': 'SELL any non-Enterprise/B2B positions immediately! SELL tech stocks down 3%+ or up 8%+.',
+    'SAAS_ONLY': 'SELL any non-Enterprise positions immediately! SELL SaaS stocks down 3%+ or if better SaaS opportunity exists.',
+    'MOMENTUM': 'SELL IMMEDIATELY if position drops 1%+ from purchase! SELL winners up 3%+ to catch the next wave. Stay nimble!',
+    'TREND_FOLLOW': 'SELL when momentum reverses - if stock was up and now falling, EXIT! Any position down 2%+ must go!',
+    'CONTRARIAN': 'SELL when everyone is buying! If a stock rises 3%+ and gets hyped, time to take profits and go against the crowd.',
+    'PERFECT_TIMING': 'SELL at peaks! Position up 3%+? Lock profits. Position down 3%+? Cut losses. Timing is everything.'
   };
   return triggers[strategy] || 'Consider selling positions that no longer fit your strategy.';
 }
@@ -283,17 +283,18 @@ async function getAITradeDecision(
       }).join('\n')
     : 'No current holdings - 100% cash!';
 
-  // Identify positions to potentially sell
+  // Identify positions to potentially sell (lowered thresholds for more SELL activity)
+  // Winners: 3%+ profit, Losers: 2%+ loss - to match typical daily price movements
   const sellCandidates = portfolio.map(p => {
     const pitch = pitches.find(hp => hp.pitch_id === p.pitch_id);
     const currentValue = p.shares_owned * (pitch?.current_price || 0);
     const gainLossPercent = p.total_invested > 0 ? ((currentValue - p.total_invested) / p.total_invested) * 100 : 0;
     return { ...p, pitch, currentValue, gainLossPercent };
-  }).filter(p => p.gainLossPercent > 10 || p.gainLossPercent < -10);
+  }).filter(p => p.gainLossPercent > 3 || p.gainLossPercent < -2);
 
   const sellOpportunities = sellCandidates.length > 0
-    ? `\n🎯 SELL CANDIDATES:\n${sellCandidates.map(p => 
-        `- ${p.pitch?.ticker}: ${p.gainLossPercent >= 0 ? '+' : ''}${p.gainLossPercent.toFixed(1)}% (${p.gainLossPercent >= 10 ? 'TAKE PROFITS?' : 'CUT LOSSES?'})`
+    ? `\n🎯 SELL CANDIDATES (Review these!):\n${sellCandidates.map(p => 
+        `- ${p.pitch?.ticker}: ${p.gainLossPercent >= 0 ? '+' : ''}${p.gainLossPercent.toFixed(1)}% | ${p.shares_owned.toFixed(0)} shares | Value: $${p.currentValue.toFixed(0)} (${p.gainLossPercent >= 3 ? '💰 TAKE PROFITS?' : '🚨 CUT LOSSES?'})`
       ).join('\n')}`
     : '';
 
