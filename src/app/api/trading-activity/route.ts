@@ -4,125 +4,90 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // Use fresh client to avoid caching
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!,
     { auth: { persistSession: false } }
   );
-  
+
   try {
-    // Get recent trades (last 50)
-    const { data: recentTrades, error: tradesError } = await supabase
-      .from('investment_transactions')
-      .select(`
-        id,
-        user_id,
-        pitch_id,
-        transaction_type,
-        shares,
-        price_per_share,
-        total_amount
-      `)
-      .order('id', { ascending: false })
-      .limit(50);
-    
-    console.log('[Trading Activity] Query result:', {
-      tradesCount: recentTrades?.length,
-      hasError: !!tradesError,
-      errorMessage: tradesError?.message
-    });
+    // Get recent AI trading logs (richer data than investment_transactions)
+    const { data: logs, error: logsError } = await supabase
+      .from('ai_trading_logs')
+      .select('id, user_id, display_name, decision_action, decision_pitch_id, decision_shares, decision_reasoning, execution_success, execution_message, created_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
 
-    if (tradesError) {
-      console.error('Error fetching trades:', tradesError);
-      throw tradesError;
-    }
+    if (logsError) {
+      // Fallback to investment_transactions if ai_trading_logs fails
+      const { data: trades, error: tradesError } = await supabase
+        .from('investment_transactions')
+        .select('id, user_id, pitch_id, transaction_type, shares, price_per_share, total_amount')
+        .order('id', { ascending: false })
+        .limit(30);
 
-    // If no trades, return empty data
-    if (!recentTrades || recentTrades.length === 0) {
+      if (tradesError) throw tradesError;
+
+      // Get user names
+      const userIds = [...new Set(trades?.map(t => t.user_id) || [])];
+      const { data: users } = await supabase
+        .from('user_token_balances')
+        .select('user_id, display_name')
+        .in('user_id', userIds);
+
+      // Get tickers from ai_readable_pitches
+      const pitchIds = [...new Set(trades?.map(t => t.pitch_id) || [])];
+      const { data: stocks } = await supabase
+        .from('ai_readable_pitches')
+        .select('pitch_id, ticker')
+        .in('pitch_id', pitchIds);
+
+      const tickerMap: Record<number, string> = {};
+      stocks?.forEach(s => { tickerMap[s.pitch_id] = s.ticker; });
+
+      const userMap: Record<string, string> = {};
+      users?.forEach(u => { userMap[u.user_id] = u.display_name; });
+
       return NextResponse.json({
-        recentActivity: [],
-        topInvestors: [],
-        timestamp: new Date().toISOString()
+        activities: (trades || []).map(t => ({
+          id: t.id,
+          investor_name: userMap[t.user_id] || 'Unknown',
+          action: t.transaction_type,
+          ticker: tickerMap[t.pitch_id] || `ID-${t.pitch_id}`,
+          shares: t.shares,
+          price: t.price_per_share,
+          timestamp: new Date().toISOString(),
+        })),
       });
     }
 
-    // Get user details for those trades
-    const userIds = Array.from(new Set(recentTrades.map(t => t.user_id)));
-    const { data: users, error: usersError } = await supabase
-      .from('user_token_balances')
-      .select('user_id, username, display_name, is_ai_investor, ai_emoji')
-      .in('user_id', userIds);
+    // Get tickers for pitch IDs
+    const pitchIds = [...new Set(logs?.map(l => l.decision_pitch_id).filter(Boolean) || [])];
+    const { data: stocks } = await supabase
+      .from('ai_readable_pitches')
+      .select('pitch_id, ticker')
+      .in('pitch_id', pitchIds.length > 0 ? pitchIds : [0]);
 
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      throw usersError;
-    }
-
-    // Get pitch details
-    const pitchIds = Array.from(new Set(recentTrades.map(t => t.pitch_id)));
-    const { data: pitches, error: pitchesError} = await supabase
-      .from('pitch_market_data')
-      .select('pitch_id, ticker, company_name')
-      .in('pitch_id', pitchIds);
-
-    if (pitchesError) {
-      console.error('Error fetching pitches:', pitchesError);
-      // Don't throw - continue with empty pitches
-    }
-    
-    console.log('[Trading Activity] Pitches:', {
-      pitchesCount: pitches?.length,
-      pitchIds: pitchIds.length
-    });
-
-    // Combine data
-    const enrichedTrades = recentTrades?.map(trade => {
-      const user = users?.find(u => u.user_id === trade.user_id);
-      const pitch = pitches?.find(p => p.pitch_id === trade.pitch_id);
-      
-      return {
-        id: trade.id,
-        type: trade.transaction_type,
-        investorName: user?.is_ai_investor 
-          ? `${user.ai_emoji || '🤖'} ${user.display_name}` 
-          : user?.username || 'Unknown',
-        isAI: user?.is_ai_investor || false,
-        ticker: pitch?.ticker || `PITCH-${trade.pitch_id}`,
-        companyName: pitch?.company_name || 'Unknown',
-        shares: trade.shares,
-        pricePerShare: trade.price_per_share,
-        totalAmount: trade.total_amount,
-        timestamp: new Date().toISOString() // We'll add created_at column later
-      };
-    }) || [];
-
-    // Get portfolio snapshots for the last 7 days (we'll build this feature next)
-    // For now, return current portfolio values
-    const { data: currentPortfolios, error: portfolioError } = await supabase
-      .from('user_token_balances')
-      .select('user_id, username, display_name, is_ai_investor, available_tokens, portfolio_value')
-      .order('portfolio_value', { ascending: false })
-      .limit(10);
-
-    if (portfolioError) throw portfolioError;
+    const tickerMap: Record<number, string> = {};
+    stocks?.forEach(s => { tickerMap[s.pitch_id] = s.ticker; });
 
     return NextResponse.json({
-      recentActivity: enrichedTrades.slice(0, 20), // Last 20 trades
-      topInvestors: currentPortfolios?.map(inv => ({
-        name: inv.is_ai_investor ? inv.display_name : inv.username,
-        isAI: inv.is_ai_investor,
-        portfolioValue: inv.portfolio_value,
-        cash: inv.available_tokens
-      })) || [],
-      timestamp: new Date().toISOString()
+      activities: (logs || []).map(log => ({
+        id: log.id,
+        investor_name: log.display_name,
+        action: log.decision_action,
+        ticker: tickerMap[log.decision_pitch_id] || '',
+        shares: log.decision_shares,
+        price: 0,
+        timestamp: log.created_at,
+        reasoning: log.decision_reasoning,
+        success: log.execution_success,
+      })),
+    }, {
+      headers: { 'Cache-Control': 'no-store, max-age=0' },
     });
-
   } catch (error) {
-    console.error('Trading activity API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch trading activity' },
-      { status: 500 }
-    );
+    console.error('Trading activity error:', error);
+    return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 });
   }
 }

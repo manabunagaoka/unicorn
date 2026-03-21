@@ -230,7 +230,7 @@ function getStrategyGuidelines(strategy: string): string {
     'CONSERVATIVE': 'The Boomer: ONLY invest in established, proven companies. Prefer companies with strong fundamentals and track records. Avoid risky startups. Small positions. Prefer holding over frequent trading. You lived through dot-com crash - never again!',
     'DIVERSIFIED': 'Steady Eddie: MUST spread investments across at least 4 different companies. Balance growth vs stability. Regular rebalancing. Never go all-in on one stock.',
     'ALL_IN': 'YOLO Kid: Pick ONE stock you believe in and BET BIG (80-95%). High risk = high reward. Fortune favors the bold! No half measures!',
-    'HOLD_FOREVER': 'Diamond Hands: Buy quality and NEVER EVER SELL. Long-term value investing. Ignore ALL short-term volatility. Paper hands lose, diamond hands WIN. 💎🙌',
+    'HOLD_FOREVER': 'Diamond Hands: Buy quality and NEVER EVER SELL. Long-term value investing. Ignore ALL short-term volatility. Paper hands lose, diamond hands WIN.',
     'TECH_ONLY': 'Silicon Brain: ONLY companies categorized as "Enterprise" (business software, enterprise tech). NO consumer products, NO social impact. Filter companies by category="Enterprise" ONLY. If no Enterprise companies are attractive, HOLD - never compromise your standards!',
     'SAAS_ONLY': 'Cloud Surfer: ONLY companies categorized as "Enterprise" (cloud software, SaaS with recurring revenue). Filter companies by category="Enterprise" ONLY. Consumer/social impact are NOT enterprise SaaS. If no Enterprise companies fit, HOLD - never violate the B2B rule!',
     'MOMENTUM': 'FOMO Master: You HATE missing gains! Buy stocks rising 1%+. Stock falling 1%+? SELL IT NOW! Sitting on >40% cash is UNACCEPTABLE - you MUST be in the market!',
@@ -305,9 +305,7 @@ async function getAITradeDecision(
   const marketData = shuffledPitches.map(p => {
     return `[Pitch ID: ${p.pitch_id}] ${p.company_name} (${p.ticker}) - ${p.category}
     Price: $${p.current_price?.toFixed(2)} (${p.price_change_24h >= 0 ? '+' : ''}${p.price_change_24h?.toFixed(2)}% today)
-    Pitch: "${p.elevator_pitch}"
-    Story: ${p.founder_story}
-    Fun Fact: ${p.fun_fact}`;
+    About: "${p.elevator_pitch}"`;
   }).join('\n\n');
 
   const strategyLimits = getStrategyLimits(aiInvestor.ai_strategy, aiInvestor.available_tokens);
@@ -344,7 +342,7 @@ Your catchphrase: "${aiInvestor.ai_catchphrase}"
 ${portfolioSummary}
 ${sellOpportunities}
 
-INVESTMENT OPPORTUNITIES (HM14 - Harvard Magnificent Companies):
+INVESTMENT OPPORTUNITIES (Manaboodle Unicorn Market):
 ${marketData}
 
 🎭 YOUR PERSONALITY & TRADING GUIDELINES:

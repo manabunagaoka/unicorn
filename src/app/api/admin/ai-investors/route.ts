@@ -51,12 +51,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(200);
 
-    // Ticker map for live price fetching (HM14)
-    const tickerMap: { [key: number]: string } = {
-      1: 'META', 2: 'MSFT', 3: 'ABNB', 4: 'NET', 5: 'GRAB',
-      6: 'MRNA', 7: 'KVYO', 8: 'AFRM', 9: 'PTON', 10: 'ASAN',
-      11: 'LYFT', 12: 'TDUP', 13: 'KIND', 14: 'RENT'
-    };
+    // Ticker map for live price fetching - loaded from DB
+    const { data: stocks } = await supabase
+      .from('ai_readable_pitches')
+      .select('pitch_id, ticker')
+      .not('ticker', 'is', null);
+
+    const tickerMap: { [key: number]: string } = {};
+    stocks?.forEach(s => { tickerMap[s.pitch_id] = s.ticker; });
 
     // Combine data with live prices
     const enrichedAIInvestors = await Promise.all(aiInvestors?.map(async (ai) => {

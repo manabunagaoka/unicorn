@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Generate new user_id (simple increment or UUID)
     const timestamp = Date.now();
     const newUserId = `ai_clone_${timestamp}`;
-    const newEmail = `ai_clone_${timestamp}@rize.com`;
+    const newEmail = `ai_clone_${timestamp}@unicorn.manaboodle.com`;
     const newNickname = `${sourceAI.display_name} 2`;
 
     // Create cloned AI investor

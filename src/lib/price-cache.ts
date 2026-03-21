@@ -1,5 +1,5 @@
-// Shared price cache for Edge Runtime
-// This will be shared across all API routes in the same Edge Runtime instance
+// Shared price cache
+// In-memory cache shared across API routes in the same runtime instance
 
 export interface CachedPrice {
   price: number;

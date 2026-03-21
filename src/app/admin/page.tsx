@@ -47,11 +47,8 @@ interface TestResult {
   error?: string;
 }
 
-const TICKER_MAP: Record<number, string> = {
-  1: 'META', 2: 'MSFT', 3: 'ABNB', 4: 'NET', 5: 'GRAB',
-  6: 'MRNA', 7: 'KVYO', 8: 'AFRM', 9: 'PTON', 10: 'ASAN',
-  11: 'LYFT', 12: 'TDUP', 13: 'KIND', 14: 'RENT'
-};
+// Ticker map loaded from API data instead of hardcoded
+let TICKER_MAP: Record<number, string> = {};
 
 export default function UnicornAdmin() {
   const [password, setPassword] = useState('');
@@ -460,7 +457,7 @@ export default function UnicornAdmin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'rize2025') {
+    if (password === 'unicorn2025') {
       setIsAuthenticated(true);
       loadData();
     }
@@ -469,60 +466,39 @@ export default function UnicornAdmin() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch all APIs with comparison
       const cacheBuster = Date.now();
-      const [integrityRes, aiRes, leaderboardRes] = await Promise.all([
-        fetch(`/api/data-integrity?t=${cacheBuster}`),
+      const [aiRes, leaderboardRes] = await Promise.all([
         fetch(`/api/admin/ai-investors?t=${cacheBuster}`),
         fetch(`/api/leaderboard?t=${cacheBuster}`)
       ]);
       
-      if (integrityRes.ok && aiRes.ok) {
-        const integrityData = await integrityRes.json();
+      if (aiRes.ok) {
         const aiData = await aiRes.json();
         const leaderboardData = leaderboardRes.ok ? await leaderboardRes.json() : null;
-        
-        // Fetch db-truth for each user
-        const dbTruthResults = await Promise.all(
-          integrityData.users.map(async (intUser: any) => {
-            try {
-              const res = await fetch(`/api/db-truth?userId=${intUser.userId}&t=${cacheBuster}`);
-              if (res.ok) {
-                return await res.json();
-              }
-            } catch (err) {
-              console.error(`Failed to fetch db-truth for ${intUser.userId}:`, err);
-            }
-            return null;
-          })
-        );
-        
-        // Build comparison for each user
-        const usersWithComparison = integrityData.users.map((intUser: any, index: number) => {
-          const aiInv = aiData.aiInvestors?.find((ai: any) => ai.userId === intUser.userId);
-          const lbUser = leaderboardData?.leaderboard?.find((u: any) => u.userId === intUser.userId);
-          const dbUser = dbTruthResults[index];
-          
-          const values = {
-            aiInvestors: aiInv?.totalValue || 0,
-            integrity: intUser.ui.totalValue || 0,
-            leaderboard: lbUser?.portfolioValue || 0,
-            database: dbUser?.database_raw.total_value || 0
+
+        // Build ticker map from AI data pitches
+        if (aiData.aiInvestors?.[0]?.pitches) {
+          aiData.aiInvestors[0].pitches.forEach((p: any) => {
+            if (p.pitch_id && p.ticker) TICKER_MAP[p.pitch_id] = p.ticker;
+          });
+        }
+
+        // Map AI investors as users for the dashboard
+        const usersFromAI = (aiData.aiInvestors || []).map((ai: any) => {
+          const lbUser = leaderboardData?.leaderboard?.find((u: any) => u.userId === ai.userId);
+          return {
+            userId: ai.userId,
+            displayName: ai.nickname || ai.displayName,
+            email: ai.email,
+            isAI: true,
+            ui: { totalValue: lbUser?.portfolioValue || ai.totalValue || 0 },
+            db: {},
+            discrepancies: {},
+            hasDiscrepancy: false,
           };
-          
-          // Allow small differences due to price timing (< $1 is OK)
-          const closeEnough = (a: number, b: number) => Math.abs(a - b) < 1;
-          
-          // For AI investors: all 3 live APIs should match
-          // For human investors: skip aiInvestors comparison (it's not in that API)
-          const allMatch = intUser.isAI 
-            ? (closeEnough(values.aiInvestors, values.integrity) && closeEnough(values.integrity, values.leaderboard))
-            : closeEnough(values.integrity, values.leaderboard);
-          
-          return { ...intUser, apiComparison: { values, allMatch, aiInv, lbUser, dbUser } };
         });
         
-        setUsers(usersWithComparison);
+        setUsers(usersFromAI);
         setAIInvestors(aiData.aiInvestors || []);
       }
     } catch (err) {
@@ -657,7 +633,7 @@ export default function UnicornAdmin() {
             >
               Access Admin Panel
             </button>
-            <p className="text-gray-400 text-xs text-center">Password: rize2025</p>
+            <p className="text-gray-400 text-xs text-center">Manaboodle Unicorn Admin</p>
           </form>
         </div>
       </div>
