@@ -1,3 +1,6 @@
+> **⚠️ Archived 2026-06-17 — superseded by a new direction. This repo is frozen as a
+> permanent record and is not maintained. See [FROZEN_STATE.md](FROZEN_STATE.md).**
+
 # MM7 Index - Manaboodle Magnificent 7
 
 An investment competition platform where users compete against AI investors across multiple market indexes. Build your portfolio, unlock new markets, and win the chance to invest in your own startup!
