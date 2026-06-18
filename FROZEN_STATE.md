@@ -88,6 +88,14 @@ Next.js 15 App Router on Vercel; Supabase via `@supabase/supabase-js` with the s
 - **In-memory price cache is per-instance.** The cache is a module-level `Map`, so on Vercel it does not persist across serverless instances — it helps within a request burst, not globally. (Carried into EXTRACT_LIST.md as a known weakness to fix.)
 - **Operational hand-holding.** The volume of `fix_`/`recalc_`/`reset_` scripts is itself the signal: the live system needed regular manual correction of prices and balances.
 
+## 4a. Shutdown actions taken at freeze
+
+To stop live activity (the app was on Vercel with the trading crons still firing):
+
+- **`vercel.json` `crons[]` emptied to `[]`** as a code-level kill switch. A redeploy of this commit removes all scheduled jobs from Vercel, stopping the twice-daily AI trading and the (already-broken) hourly price sync. *(The disarm note lives here and in the freeze commit message rather than inline in `vercel.json`, because that file is strict JSON — comments / unknown keys would fail Vercel's parser and could leave the old cron-armed deployment live.)*
+- The freeze commit was pushed to trigger that cron-less redeploy.
+- **Remaining manual shutdown** (cannot be done from the repo) is whatever is listed in the freeze conversation / the project owner's checklist: disabling or deleting the Vercel project/deployment if full teardown is wanted, revoking the `OPENAI_API_KEY` / `STOCK_API_KEY` (Finnhub) / `CRON_SECRET`, and optionally pausing the Supabase project. Emptying `crons[]` only stops the *schedule*; the manual admin trigger endpoint still exists in code and would run if invoked.
+
 ## 5. Where the reusable core went
 
 The portable, concept-agnostic engineering — the multi-agent persona engine, the audit-logging schema, the external-API-with-cache pattern, and the deploy skeleton — is documented, with real logic reproduced, in **[EXTRACT_LIST.md](EXTRACT_LIST.md)**. That file is the bridge to the new repo and is written to stand alone without access to this code.
